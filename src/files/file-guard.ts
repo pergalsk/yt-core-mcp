@@ -102,8 +102,12 @@ export async function openGuardedFile(
   }
 
   // Lexical check before any filesystem access to the user-supplied path.
-  const candidate = resolve(realRoot, input);
-  if (!isInside(realRoot, candidate)) throw refusal(kind);
+  // Compared with the root as configured: realRoot may differ in form
+  // (8.3 short names, junction, subst drive). The realpath check below
+  // still uses realRoot.
+  const configuredRoot = resolve(root);
+  const candidate = resolve(configuredRoot, input);
+  if (!isInside(configuredRoot, candidate)) throw refusal(kind);
 
   let handle: FileHandle | undefined;
   try {
