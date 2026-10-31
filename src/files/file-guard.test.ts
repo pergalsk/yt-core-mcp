@@ -45,6 +45,17 @@ describe('openGuardedFile', () => {
     }
   });
 
+  it('opens a file when the root is given via a junction alias', async () => {
+    const alias = join(base, 'media-alias');
+    await symlink(root, alias, 'junction');
+    const f = await openGuardedFile(join(alias, 'cover.png'), 'thumbnail', alias);
+    expect(f.mimeType).toBe('image/png');
+    await f.handle.close();
+    await expect(openGuardedFile(join(alias, 'junction', 'secret.png'), 'thumbnail', alias)).rejects.toThrow(
+      FileGuardError,
+    );
+  });
+
   it('refuses when the root is not configured or missing', async () => {
     for (const r of ['', join(base, 'nope')]) {
       await expect(openGuardedFile('cover.png', 'thumbnail', r)).rejects.toThrow(FileGuardError);
