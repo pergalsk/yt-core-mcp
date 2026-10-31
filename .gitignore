@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.claude/.tmp/
+*-TMP.md
+.env
+.env.*
+client_secret*.json
+*.log
