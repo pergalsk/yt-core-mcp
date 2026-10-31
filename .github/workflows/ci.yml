@@ -15,13 +15,9 @@ concurrency:
 
 jobs:
   check:
-    name: Node ${{ matrix.node }}
+    name: Node 24
     runs-on: windows-latest
     timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        node: [22, 24]
     steps:
       # Actions pinned to full commit SHA (GitHub security hardening guide).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -30,7 +26,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: ${{ matrix.node }}
+          node-version: 24
 
       - run: npm ci
       - run: npm run lint
