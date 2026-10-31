@@ -1,0 +1,12 @@
+# Normalize line endings: store and check out text files as LF.
+# https://git-scm.com/docs/gitattributes
+* text=auto eol=lf
+
+# Binary files: never convert or diff as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.mp4 binary
+*.mov binary
+*.mkv binary
+*.webm binary
