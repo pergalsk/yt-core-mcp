@@ -18,6 +18,7 @@ MCP server for YouTube: live stream scheduling (title, description, date/time, t
    - add permissions later: `node dist/bin.js auth --add analytics` (groups: `captions`, `comments`, `analytics`)
    - `--status`, `--logout` (revokes the token at Google)
 4. **Register in Claude Code**: `claude mcp add yt-core -- node D:/Projects/yt-core-mcp/dist/bin.js`
+5. **Local files** (thumbnails, videos, captions): set `YT_CORE_MCP_MEDIA_ROOT` to the only folder the server may read (e.g. `D:\Media\YouTube`). Unset ⇒ file uploads are disabled.
 
 ## Security design
 
@@ -25,6 +26,7 @@ MCP server for YouTube: live stream scheduling (title, description, date/time, t
 - **Login is CLI-only** — the MCP server cannot start a login or see tokens.
 - **Least privilege**: only `youtube` scope by default; captions/comments/analytics added with incremental authorization.
 - **Token storage**: refresh token in the OS vault (Windows Credential Manager via `@napi-rs/keyring`); access tokens only in memory. Logout revokes at Google.
+- **Local file guard**: one allowed folder; realpath containment (no `..`, symlink, junction, hard link or UNC escape), regular files only, official size limits, magic-byte type check, read only from the checked handle, same refusal message for every case.
 - **MCP**: stdio transport only, all logs to stderr, tool annotations (`readOnlyHint`, `destructiveHint`), validated inputs (zod).
 - **Supply chain**: exact versions + `package-lock.json`, `ignore-scripts=true`, dependencies installed with a 14-day release cooldown, `npm audit` clean for production deps.
   Known dev-only finding: `minimatch` (moderate ReDoS) inside ESLint — not exploitable here (only our own glob config), no compatible fix yet.
