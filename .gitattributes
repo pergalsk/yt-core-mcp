@@ -10,3 +10,4 @@
 *.mov binary
 *.mkv binary
 *.webm binary
+*.af binary
