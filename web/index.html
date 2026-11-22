@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>yt-core-mcp</title>
+    <meta name="description" content="A personal MCP server that lets an AI assistant help manage a YouTube channel through the official YouTube APIs." />
+    <link rel="icon" type="image/png" href="logo.png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <a href="/"><img src="logo.png" alt="" /> yt-core-mcp</a>
+      <nav>
+        <a href="/" aria-current="page">About</a>
+        <a href="/privacy-policy">Privacy Policy</a>
+        <a href="/terms-of-service">Terms of Service</a>
+      </nav>
+    </header>
+    <main>
+      <h1>yt-core-mcp</h1>
+      <p>yt-core-mcp is a personal tool that lets an AI assistant help manage a YouTube channel.</p>
+      <p>
+        It is an <a href="https://modelcontextprotocol.io/">MCP</a> server: a small program that runs on your own computer and
+        connects an AI assistant (for example Claude) to your YouTube channel through the official YouTube APIs.
+      </p>
+
+      <h2>What it does</h2>
+      <ul>
+        <li>Schedule live streams: title, description, date and time, thumbnail</li>
+        <li>Publish and update live streams</li>
+        <li>Read and update video and channel details</li>
+        <li>Optional: captions, comments and channel analytics (only if you turn them on)</li>
+      </ul>
+
+      <h2>How it works</h2>
+      <ul>
+        <li>Runs only on your computer. There is no server and no cloud service.</li>
+        <li>
+          You sign in with your Google account in a terminal. The AI assistant cannot sign in for you and never sees your password
+          or tokens.
+        </li>
+        <li>The app asks only for the permissions it needs. Extra permissions are added only when you choose to.</li>
+        <li>Your sign-in token is stored in your computer's secure vault (Windows Credential Manager).</li>
+        <li>Uses only official Google and YouTube APIs.</li>
+      </ul>
+
+      <h2>Your data</h2>
+      <p>yt-core-mcp does not collect, sell or share your data. Read more:</p>
+      <ul>
+        <li><a href="/privacy-policy">Privacy Policy</a></li>
+        <li><a href="/terms-of-service">Terms of Service</a></li>
+      </ul>
+      <p>
+        You can remove the app's access at any time in your
+        <a href="https://myaccount.google.com/permissions">Google account permissions</a>.
+      </p>
+
+      <h2>Contact</h2>
+      <p>Peter Gál — <a href="mailto:pergalsk@gmail.com">pergalsk@gmail.com</a></p>
+    </main>
+    <footer>yt-core-mcp · <a href="/privacy-policy">Privacy Policy</a> · <a href="/terms-of-service">Terms of Service</a></footer>
+  </body>
+</html>

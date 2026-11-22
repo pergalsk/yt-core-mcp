@@ -6,3 +6,4 @@ dist/
 .env.*
 client_secret*.json
 *.log
+.vercel
