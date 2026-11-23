@@ -7,7 +7,7 @@ import { defined } from '../util/defined.js';
 import { OVERWRITE, READ_ONLY, WRITE } from './annotations.js';
 import { confirmAction } from './confirm.js';
 import { runTool, untrustedResult } from './result.js';
-import { maxResults, pageToken, resourceId, videoId } from './schemas.js';
+import { description, languageCode, maxResults, pageToken, resourceId, tags, title, videoId } from './schemas.js';
 import { addPlaylistItem } from './upload-playlists.js';
 import { setThumbnail, updateVideo, type VideoPatch } from './videos.js';
 import type { YouTubeFactory } from './youtube.js';
@@ -23,7 +23,7 @@ const startTime = z
 
 // Optional fields: only sent when given, otherwise YouTube's own defaults / current values apply.
 const details = {
-  description: z.string().max(5000).optional(),
+  description: description.optional(),
   thumbnailPath: z
     .string()
     .min(1)
@@ -31,8 +31,8 @@ const details = {
     .optional()
     .describe('Cover image (JPEG/PNG ≤2 MB) inside the media folder (YT_CORE_MCP_MEDIA_ROOT).'),
   categoryId: z.string().regex(/^\d+$/).optional().describe('Numeric category id (see categories_list).'),
-  tags: z.array(z.string().min(1).max(500)).max(500).optional().describe('Replaces all tags.'),
-  defaultLanguage: z.string().regex(/^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/).optional().describe('Language, e.g. "sk".'),
+  tags: tags.optional().describe('Replaces all tags. Max 500 characters in total.'),
+  defaultLanguage: languageCode.optional().describe('Language, e.g. "sk".'),
   madeForKids: z.boolean().optional().describe('Self-declared made for kids.'),
   enableDvr: z.boolean().optional().describe('Viewers can rewind (YouTube default: true).'),
   enableEmbed: z.boolean().optional().describe('Can be embedded on other sites (YouTube default: true).'),
@@ -64,15 +64,32 @@ function zoneOffsetMs(instant: number, timeZone: string): number {
   return wall - Math.floor(instant / 1000) * 1000;
 }
 
-/** Converts an ISO 8601 start (with or without offset) to a UTC ISO string. */
+/**
+ * Converts an ISO 8601 start (with or without offset) to a UTC ISO string.
+ * Rejects impossible dates (e.g. Feb 30), unknown time zones and starts in the past.
+ */
 export function toUtcIso(start: string, timeZone: string): string {
   const m = START_RE.exec(start);
   if (!m) throw new Error(`Invalid start time: ${start}`);
-  if (m[7]) return new Date(start).toISOString();
   const wall = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6] ?? 0));
-  // Second pass handles a DST change between the wall time and the first guess.
-  const guess = wall - zoneOffsetMs(wall, timeZone);
-  return new Date(wall - zoneOffsetMs(guess, timeZone)).toISOString();
+  // Date.UTC rolls over impossible values (Feb 30 → Mar 2), so a real date must survive the round trip.
+  if (!new Date(wall).toISOString().startsWith(start.slice(0, m[6] ? 19 : 16))) {
+    throw new Error(`Invalid start time: ${start} is not a real date/time.`);
+  }
+  let utc: number;
+  if (m[7]) {
+    utc = new Date(start).getTime();
+    if (Number.isNaN(utc)) throw new Error(`Invalid start time: ${start} has an invalid UTC offset.`);
+  } else {
+    if (timeZone !== 'UTC' && !Intl.supportedValuesOf('timeZone').includes(timeZone)) {
+      throw new Error(`Unknown time zone: ${timeZone}. Use an IANA name, e.g. "Europe/Bratislava".`);
+    }
+    // Second pass handles a DST change between the wall time and the first guess.
+    const guess = wall - zoneOffsetMs(wall, timeZone);
+    utc = wall - zoneOffsetMs(guess, timeZone);
+  }
+  if (utc <= Date.now()) throw new Error(`Start time ${start} is in the past.`);
+  return new Date(utc).toISOString();
 }
 
 function maskKey(key: string | null | undefined): string | undefined {
@@ -222,7 +239,7 @@ export function registerLiveTools(server: McpServer, yt: YouTubeFactory): void {
         'not sent, so YouTube defaults apply. If a later step fails, the broadcast is kept and the result lists ' +
         'what failed. Costs ~50 quota units plus ~50 per optional step.',
       inputSchema: {
-        title: z.string().min(1).max(100),
+        title,
         startTime,
         timezone,
         privacyStatus: z.enum(['private', 'unlisted', 'public']).default('private'),
@@ -282,7 +299,7 @@ export function registerLiveTools(server: McpServer, yt: YouTubeFactory): void {
         'Privacy is changed with live_publish_broadcast. Costs ~51 quota units plus ~50 per extra step.',
       inputSchema: {
         broadcastId,
-        title: z.string().min(1).max(100).optional(),
+        title: title.optional(),
         startTime: startTime.optional(),
         timezone,
         ...details,

@@ -141,6 +141,16 @@ describe('upload and playlist tools', () => {
     expect(yt.authRequest).not.toHaveBeenCalled();
   });
 
+  it('video_upload rejects invalid text without calling the API', async () => {
+    const yt = fakeYouTube();
+    const client = await connect(yt.factory);
+    for (const args of [{ title: 'a > b' }, { title: 'x', description: '<script>' }, { title: 'x', tags: ['a'.repeat(250), 'b'.repeat(250)] }]) {
+      const result = await client.callTool({ name: 'video_upload', arguments: { file: 'clip.mp4', ...args } });
+      expect(result.isError).toBe(true);
+    }
+    expect(yt.authRequest).not.toHaveBeenCalled();
+  });
+
   it('video_upload refuses non-video files', async () => {
     await writeFile(join(media, 'fake.mp4'), 'not a video');
     const yt = fakeYouTube();

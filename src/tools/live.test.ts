@@ -97,6 +97,9 @@ function errorText(result: Awaited<ReturnType<Client['callTool']>>): string {
 let root: string;
 
 beforeAll(async () => {
+  // Fixed "now", so start times in the tests stay in the future.
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-06-01T00:00:00Z'));
   root = await mkdtemp(join(tmpdir(), 'yt-live-'));
   await writeFile(join(root, 'cover.png'), PNG);
   vi.stubEnv(MEDIA_ROOT_ENV, root);
@@ -104,6 +107,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   vi.unstubAllEnvs();
+  vi.useRealTimers();
   await rm(root, { recursive: true, force: true });
 });
 
@@ -117,6 +121,24 @@ describe('toUtcIso', () => {
   it('keeps an explicit offset', () => {
     expect(toUtcIso('2026-12-01T19:00+02:00', 'Europe/Bratislava')).toBe('2026-12-01T17:00:00.000Z');
     expect(toUtcIso('2026-12-01T19:00Z', 'Europe/Bratislava')).toBe('2026-12-01T19:00:00.000Z');
+  });
+
+  it('rejects impossible dates and times', () => {
+    expect(() => toUtcIso('2026-02-30T19:00', 'UTC')).toThrow('not a real date/time');
+    expect(() => toUtcIso('2026-12-01T24:00', 'UTC')).toThrow('not a real date/time');
+    expect(() => toUtcIso('2026-02-30T19:00Z', 'UTC')).toThrow('not a real date/time');
+    expect(() => toUtcIso('2026-12-01T19:00+25:00', 'UTC')).toThrow('invalid UTC offset');
+    expect(() => toUtcIso('soon', 'UTC')).toThrow('Invalid start time');
+  });
+
+  it('rejects a start in the past', () => {
+    expect(() => toUtcIso('2026-05-31T23:00', 'UTC')).toThrow('in the past');
+    expect(() => toUtcIso('2026-05-31T23:00Z', 'UTC')).toThrow('in the past');
+  });
+
+  it('rejects an unknown time zone with a clear error', () => {
+    expect(() => toUtcIso('2026-12-01T19:00', 'Mars/Olympus')).toThrow('Unknown time zone: Mars/Olympus');
+    expect(() => toUtcIso('2026-12-01T19:00', 'Not a zone')).toThrow('Unknown time zone');
   });
 });
 
@@ -267,6 +289,43 @@ describe('live tools', () => {
     const yt = fakeYouTube();
     const result = await (await connect(yt.factory)).callTool({ name: 'live_update_broadcast', arguments: { broadcastId: BID } });
     expect(result.isError).toBe(true);
+    expect(yt.api.liveBroadcasts.update).not.toHaveBeenCalled();
+  });
+
+  it('live_schedule_broadcast rejects invalid input without calling YouTube', async () => {
+    const yt = fakeYouTube();
+    const client = await connect(yt.factory);
+    const call = (args: Record<string, unknown>) =>
+      client.callTool({ name: 'live_schedule_broadcast', arguments: { title: 'Live', startTime: '2026-12-01T19:00', ...args } });
+
+    for (const args of [
+      { startTime: '2026-02-30T19:00' },
+      { startTime: '2026-01-01T19:00' },
+      { timezone: 'Mars/Olympus' },
+      { title: 'Live <b>' },
+      { description: 'Ahoj > svet' },
+      { description: 'ž'.repeat(2501) },
+      { tags: ['a'.repeat(250), 'b'.repeat(250)] },
+    ]) {
+      expect((await call(args)).isError, JSON.stringify(args).slice(0, 80)).toBe(true);
+    }
+    expect(yt.api.liveBroadcasts.insert).not.toHaveBeenCalled();
+
+    expect((await call({ timezone: 'Mars/Olympus' })).content).toEqual([
+      { type: 'text', text: 'Unknown time zone: Mars/Olympus. Use an IANA name, e.g. "Europe/Bratislava".' },
+    ]);
+    // Slovak text right at the byte limit is fine.
+    expect((await call({ description: 'ž'.repeat(2500) })).isError).toBeFalsy();
+  });
+
+  it('live_update_broadcast rejects a start in the past without calling YouTube', async () => {
+    const yt = fakeYouTube();
+    const result = await (await connect(yt.factory)).callTool({
+      name: 'live_update_broadcast',
+      arguments: { broadcastId: BID, startTime: '2026-01-01T19:00Z' },
+    });
+    expect(errorText(result)).toContain('in the past');
+    expect(yt.api.liveBroadcasts.list).not.toHaveBeenCalled();
     expect(yt.api.liveBroadcasts.update).not.toHaveBeenCalled();
   });
 

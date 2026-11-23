@@ -15,7 +15,11 @@ export function analyticsFactory(store = new TokenStore()): AnalyticsFactory {
   return () => youtubeAnalytics({ version: 'v2', auth: getAuthorizedClient('analytics', store) });
 }
 
-const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const date = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  // Rejects impossible dates like 2026-02-30 (a plain regex lets them through).
+  .refine((s) => !Number.isNaN(Date.parse(s)) && new Date(s).toISOString().startsWith(s), 'must be a real date');
 const dateRange = {
   startDate: date.describe('Start date, YYYY-MM-DD.'),
   endDate: date.describe('End date, YYYY-MM-DD (inclusive).'),
@@ -34,6 +38,7 @@ function toRows(data: youtubeAnalytics_v2.Schema$QueryResponse): Record<string, 
 
 export function registerAnalyticsTools(server: McpServer, analytics: AnalyticsFactory): void {
   async function report(args: { startDate: string; endDate: string }, query: Query): Promise<CallToolResult> {
+    if (args.startDate > args.endDate) throw new Error(`startDate (${args.startDate}) must not be after endDate (${args.endDate}).`);
     const res = await analytics().reports.query({
       ids: 'channel==MINE',
       startDate: args.startDate,

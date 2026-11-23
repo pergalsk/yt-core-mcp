@@ -118,6 +118,19 @@ describe('analytics tools', () => {
     expect(ya.query).not.toHaveBeenCalled();
   });
 
+  it('rejects impossible dates and a reversed range without calling the API', async () => {
+    const ya = fakeAnalytics();
+    const client = await connect(ya.factory);
+    const feb30 = await client.callTool({ name: 'analytics_overview', arguments: { startDate: '2026-02-30', endDate: '2026-03-31' } });
+    expect(feb30.isError).toBe(true);
+    const reversed = await client.callTool({ name: 'analytics_overview', arguments: { startDate: '2026-02-01', endDate: '2026-01-31' } });
+    expect(reversed.content).toEqual([{ type: 'text', text: 'startDate (2026-02-01) must not be after endDate (2026-01-31).' }]);
+    expect(ya.query).not.toHaveBeenCalled();
+
+    const sameDay = await client.callTool({ name: 'analytics_overview', arguments: { startDate: '2024-02-29', endDate: '2024-02-29' } });
+    expect(sameDay.isError).toBeFalsy();
+  });
+
   it('returns a clear error when not logged in', async () => {
     const client = await connect(analyticsFactory(emptyStore));
     const result = await client.callTool({ name: 'analytics_overview', arguments: range });
