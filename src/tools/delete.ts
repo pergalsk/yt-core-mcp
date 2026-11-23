@@ -1,13 +1,10 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { z } from 'zod';
+import { DELETE } from './annotations.js';
 import { confirmAction } from './confirm.js';
 import { runTool } from './result.js';
+import { resourceId, videoId } from './schemas.js';
 import type { YouTubeFactory } from './youtube.js';
-
-const id = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/);
-
-const DELETE = { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true } as const;
 
 /** Asks the user to confirm deleting `what` (refuses if not found or not confirmed), then runs `del`. */
 async function confirmAndDelete(
@@ -30,7 +27,7 @@ export function registerDeleteTools(server: McpServer, yt: YouTubeFactory): void
       description:
         'Permanently deletes one of your videos (videos.delete). Costs 51 quota units. ' +
         'The user must confirm in the client; refused if the client cannot ask for confirmation.',
-      inputSchema: { videoId: id },
+      inputSchema: { videoId },
       annotations: DELETE,
     },
     (args) =>
@@ -51,7 +48,7 @@ export function registerDeleteTools(server: McpServer, yt: YouTubeFactory): void
       description:
         'Permanently deletes one of your live broadcasts (liveBroadcasts.delete). Costs 51 quota units. ' +
         'The user must confirm in the client; refused if the client cannot ask for confirmation.',
-      inputSchema: { broadcastId: id },
+      inputSchema: { broadcastId: resourceId },
       annotations: DELETE,
     },
     (args) =>
@@ -73,7 +70,7 @@ export function registerDeleteTools(server: McpServer, yt: YouTubeFactory): void
         'Removes an item from one of your playlists (playlistItems.delete). Costs 51 quota units. ' +
         'Takes the playlist item id (e.g. from playlist_add_item), not the video id. ' +
         'The user must confirm in the client; refused if the client cannot ask for confirmation.',
-      inputSchema: { playlistItemId: id },
+      inputSchema: { playlistItemId: resourceId },
       annotations: DELETE,
     },
     (args) =>

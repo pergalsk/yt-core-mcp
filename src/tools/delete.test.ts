@@ -44,7 +44,7 @@ const cases = [
 const accept = (): ElicitResult => ({ action: 'accept', content: { confirm: true } });
 
 describe.each(cases)('$tool', ({ tool, arg, api: apiName }) => {
-  const call = { name: tool, arguments: { [arg]: 'abc123' } };
+  const call = { name: tool, arguments: { [arg]: 'abc123def45' } };
 
   it('has destructive annotations', async () => {
     const client = await connect(fakeYouTube().factory);
@@ -64,9 +64,9 @@ describe.each(cases)('$tool', ({ tool, arg, api: apiName }) => {
     const result = await client.callTool(call);
 
     expect(yt.factory).toHaveBeenCalledWith('core');
-    expect(yt[apiName].list).toHaveBeenCalledWith({ part: ['snippet'], id: ['abc123'] });
+    expect(yt[apiName].list).toHaveBeenCalledWith({ part: ['snippet'], id: ['abc123def45'] });
     expect(elicit.mock.calls[0]?.[0]).toContain('"My title"');
-    expect(yt[apiName].delete).toHaveBeenCalledWith({ id: 'abc123' });
+    expect(yt[apiName].delete).toHaveBeenCalledWith({ id: 'abc123def45' });
     expect(result.isError).toBeFalsy();
   });
 
@@ -101,4 +101,13 @@ describe.each(cases)('$tool', ({ tool, arg, api: apiName }) => {
     expect(elicit).not.toHaveBeenCalled();
     expect(yt[apiName].delete).not.toHaveBeenCalled();
   });
+});
+
+it('video_delete rejects ids that are not 11-character video ids', async () => {
+  const yt = fakeYouTube('My title');
+  const client = await connect(yt.factory, accept);
+  const result = await client.callTool({ name: 'video_delete', arguments: { videoId: 'abc123' } });
+  expect(result.isError).toBe(true);
+  expect(yt.videos.list).not.toHaveBeenCalled();
+  expect(yt.videos.delete).not.toHaveBeenCalled();
 });

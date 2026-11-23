@@ -4,7 +4,9 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { getAuthorizedClient } from '../auth/client.js';
 import { TokenStore } from '../auth/token-store.js';
+import { READ_ONLY } from './annotations.js';
 import { runTool } from './result.js';
+import { videoId } from './schemas.js';
 
 /** Returns a YouTube Analytics API client authorized for the `analytics` scope group. Injected, so tests can pass a fake. */
 export type AnalyticsFactory = () => youtubeAnalytics_v2.Youtubeanalytics;
@@ -13,17 +15,11 @@ export function analyticsFactory(store = new TokenStore()): AnalyticsFactory {
   return () => youtubeAnalytics({ version: 'v2', auth: getAuthorizedClient('analytics', store) });
 }
 
-const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true };
-
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const dateRange = {
   startDate: date.describe('Start date, YYYY-MM-DD.'),
   endDate: date.describe('End date, YYYY-MM-DD (inclusive).'),
 };
-const videoId = z
-  .string()
-  .regex(/^[\w-]{11}$/)
-  .describe('YouTube video id (11 characters).');
 
 const SUMMARY_METRICS =
   'views,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,subscribersGained,subscribersLost,likes,comments,shares';

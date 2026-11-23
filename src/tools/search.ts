@@ -1,24 +1,16 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { defined } from '../util/defined.js';
+import { READ_ONLY } from './annotations.js';
 import { runTool, untrustedResult } from './result.js';
+import { maxResults, pageToken } from './schemas.js';
 import type { YouTubeFactory } from './youtube.js';
-
-const READ_ONLY_PUBLIC = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true };
 
 const regionCode = z
   .string()
   .regex(/^[A-Za-z]{2}$/)
   .optional()
   .describe('ISO 3166-1 alpha-2 country code, e.g. "US" or "SK".');
-const maxResults = z.number().int().min(1).max(50).default(10).describe('Results per page (1-50).');
-const pageToken = z.string().max(200).optional().describe('nextPageToken from a previous call.');
-
-/** Drops undefined values (needed for exactOptionalPropertyTypes). */
-function defined<T extends Record<string, unknown>>(obj: T): { [K in keyof T]?: Exclude<T[K], undefined> } {
-  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as {
-    [K in keyof T]?: Exclude<T[K], undefined>;
-  };
-}
 
 export function registerSearchTools(server: McpServer, yt: YouTubeFactory): void {
   server.registerTool(
@@ -36,7 +28,7 @@ export function registerSearchTools(server: McpServer, yt: YouTubeFactory): void
         regionCode,
         pageToken,
       },
-      annotations: READ_ONLY_PUBLIC,
+      annotations: READ_ONLY,
     },
     (args) =>
       runTool(async () => {
@@ -75,7 +67,7 @@ export function registerSearchTools(server: McpServer, yt: YouTubeFactory): void
         maxResults,
         pageToken,
       },
-      annotations: READ_ONLY_PUBLIC,
+      annotations: READ_ONLY,
     },
     (args) =>
       runTool(async () => {
