@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { getAuthorizedClient } from '../auth/client.js';
 import { TokenStore } from '../auth/token-store.js';
 import { READ_ONLY } from './annotations.js';
-import { runTool } from './result.js';
+import { jsonResult, runTool } from './result.js';
 import { videoId } from './schemas.js';
 
 /** Returns a YouTube Analytics API client authorized for the `analytics` scope group. Injected, so tests can pass a fake. */
@@ -40,7 +40,7 @@ export function registerAnalyticsTools(server: McpServer, analytics: AnalyticsFa
       endDate: args.endDate,
       ...query,
     });
-    return { content: [{ type: 'text', text: JSON.stringify({ rows: toRows(res.data) }, null, 2) }] };
+    return jsonResult({ rows: toRows(res.data) });
   }
 
   server.registerTool(

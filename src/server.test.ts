@@ -138,4 +138,12 @@ describe('auth_status', () => {
     vi.stubEnv(MEDIA_ROOT_ENV, '');
     expect(await authStatus(null)).toMatchObject({ config: { mediaRootSet: false } });
   });
+
+  it('returns a tool error for an invalid config', async () => {
+    const client = await connect();
+    vi.stubEnv(REGION_ENV, 'nope');
+    const res = await client.callTool({ name: 'auth_status', arguments: {} });
+    expect(res.isError).toBe(true);
+    expect(res.content).toEqual([{ type: 'text', text: expect.stringMatching(/Invalid environment/) as unknown }]);
+  });
 });
