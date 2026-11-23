@@ -3,6 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { grantedGroups, ALL_GROUPS } from './auth/scopes.js';
 import { TokenStore } from './auth/token-store.js';
 import { registerCaptionTools } from './tools/captions.js';
+import { registerCommentTools } from './tools/comments.js';
 import { registerSearchTools } from './tools/search.js';
 import { registerVideoTools } from './tools/videos.js';
 import { youtubeFactory, type YouTubeFactory } from './tools/youtube.js';
@@ -39,6 +40,7 @@ export function createServer(store = new TokenStore(), yt: YouTubeFactory = yout
   registerSearchTools(server, yt);
   registerCaptionTools(server, yt);
   registerVideoTools(server, yt);
+  registerCommentTools(server, yt);
 
   return server;
 }
