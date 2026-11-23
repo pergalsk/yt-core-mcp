@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Readable } from 'node:stream';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { REGION_ENV } from '../config.js';
 import { TokenStore } from '../auth/token-store.js';
 import { MEDIA_ROOT_ENV } from '../files/file-guard.js';
 import { createServer } from '../server.js';
@@ -221,5 +222,13 @@ describe('video tools', () => {
     const result = await (await connect(yt.factory)).callTool({ name: 'categories_list', arguments: {} });
     expect(yt.api.videoCategories.list).toHaveBeenCalledWith({ part: ['snippet'], regionCode: 'SK' });
     expect(parseText(result)).toMatchObject({ untrustedData: [{ id: '22', title: 'People & Blogs', assignable: true }] });
+  });
+
+  it('categories_list uses the region from YT_CORE_MCP_REGION by default', async () => {
+    vi.stubEnv(REGION_ENV, 'US');
+    const yt = fakeYouTube();
+    await (await connect(yt.factory)).callTool({ name: 'categories_list', arguments: {} });
+    expect(yt.api.videoCategories.list).toHaveBeenCalledWith({ part: ['snippet'], regionCode: 'US' });
+    vi.stubEnv(REGION_ENV, undefined);
   });
 });

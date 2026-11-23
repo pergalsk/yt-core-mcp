@@ -1,5 +1,6 @@
 import { open, realpath, lstat, type FileHandle } from 'node:fs/promises';
 import { isAbsolute, relative, resolve } from 'node:path';
+import { loadConfig, MEDIA_ROOT_ENV } from '../config.js';
 
 /**
  * Single entry point for reading local files (thumbnails, videos, captions).
@@ -15,7 +16,7 @@ import { isAbsolute, relative, resolve } from 'node:path';
  * Every refusal for a given kind has the same message (no path oracle).
  */
 
-export const MEDIA_ROOT_ENV = 'YT_CORE_MCP_MEDIA_ROOT';
+export { MEDIA_ROOT_ENV };
 
 export type FileKind = 'thumbnail' | 'video' | 'caption';
 
@@ -88,7 +89,7 @@ export function detectMimeType(kind: FileKind, header: Buffer): string | null {
 export async function openGuardedFile(
   input: string,
   kind: FileKind,
-  root: string | undefined = process.env[MEDIA_ROOT_ENV],
+  root: string | undefined = loadConfig().mediaRoot,
 ): Promise<GuardedFile> {
   if (!root) {
     throw new FileGuardError(`Local file access is disabled. Set ${MEDIA_ROOT_ENV} to an allowed folder.`);

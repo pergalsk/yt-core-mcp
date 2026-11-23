@@ -1,6 +1,7 @@
 import type { youtube_v3 } from '@googleapis/youtube';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { loadConfig } from '../config.js';
 import { openGuardedFile } from '../files/file-guard.js';
 import { confirmAction } from './confirm.js';
 import { runTool, untrustedResult } from './result.js';
@@ -13,7 +14,6 @@ const WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: fal
 // Overwrites existing data on YouTube; repeating the same call gives the same result.
 const OVERWRITE = { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true };
 
-const DEFAULT_TIMEZONE = 'Europe/Bratislava';
 const START_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?(Z|[+-]\d{2}:\d{2})?$/;
 
 const broadcastId = z.string().regex(/^[\w-]{11}$/).describe('Broadcast id (same as its video id, 11 characters).');
@@ -24,7 +24,6 @@ const startTime = z
   .string()
   .regex(START_RE)
   .describe('Start, ISO 8601 (e.g. 2026-12-01T19:00). Without Z/offset it is local time in `timezone`.');
-const timezone = z.string().min(1).max(64).default(DEFAULT_TIMEZONE).describe('IANA time zone for `startTime`.');
 
 // Optional fields: only sent when given, otherwise YouTube's own defaults / current values apply.
 const details = {
@@ -217,6 +216,13 @@ function summary(b: youtube_v3.Schema$LiveBroadcast) {
 }
 
 export function registerLiveTools(server: McpServer, yt: YouTubeFactory): void {
+  const timezone = z
+    .string()
+    .min(1)
+    .max(64)
+    .default(loadConfig().timezone)
+    .describe('IANA time zone for `startTime`.');
+
   server.registerTool(
     'live_schedule_broadcast',
     {

@@ -2,6 +2,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { youtube_v3 } from '@googleapis/youtube';
 import { describe, expect, it, vi } from 'vitest';
+import { REGION_ENV } from '../config.js';
 import { TokenStore } from '../auth/token-store.js';
 import { createServer } from '../server.js';
 import { UNTRUSTED_NOTICE } from './result.js';
@@ -104,6 +105,15 @@ describe('search tools', () => {
     expect(yt.searchList).not.toHaveBeenCalled();
   });
 
+  it('videos_trending uses the region from YT_CORE_MCP_REGION', async () => {
+    vi.stubEnv(REGION_ENV, 'CZ');
+    const yt = fakeYouTube();
+    const client = await connect(yt.factory);
+    await client.callTool({ name: 'videos_trending', arguments: {} });
+    expect(yt.videosList).toHaveBeenCalledWith(expect.objectContaining({ regionCode: 'CZ' }));
+    vi.unstubAllEnvs();
+  });
+
   it('videos_trending calls videos.list chart=mostPopular', async () => {
     const yt = fakeYouTube();
     const client = await connect(yt.factory);
@@ -113,6 +123,7 @@ describe('search tools', () => {
       part: ['snippet', 'statistics', 'contentDetails'],
       chart: 'mostPopular',
       maxResults: 5,
+      regionCode: 'SK',
       videoCategoryId: '10',
     });
     expect(parseText(result)).toEqual({

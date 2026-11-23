@@ -1,5 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { loadConfig } from '../config.js';
 import { runTool, untrustedResult } from './result.js';
 import type { YouTubeFactory } from './youtube.js';
 
@@ -70,7 +71,11 @@ export function registerSearchTools(server: McpServer, yt: YouTubeFactory): void
       description:
         'Lists the most popular videos in a region (YouTube Data API videos.list chart=mostPopular). Costs 1 quota unit.',
       inputSchema: {
-        regionCode,
+        regionCode: z
+          .string()
+          .regex(/^[A-Za-z]{2}$/)
+          .default(loadConfig().region)
+          .describe('ISO 3166-1 alpha-2 country code, e.g. "US" or "SK".'),
         videoCategoryId: z.string().regex(/^\d+$/).optional().describe('Numeric video category id.'),
         maxResults,
         pageToken,
@@ -83,7 +88,8 @@ export function registerSearchTools(server: McpServer, yt: YouTubeFactory): void
           part: ['snippet', 'statistics', 'contentDetails'],
           chart: 'mostPopular',
           maxResults: args.maxResults,
-          ...defined({ regionCode: args.regionCode, videoCategoryId: args.videoCategoryId, pageToken: args.pageToken }),
+          regionCode: args.regionCode,
+          ...defined({ videoCategoryId: args.videoCategoryId, pageToken: args.pageToken }),
         });
         return untrustedResult({
           nextPageToken: res.data.nextPageToken ?? null,

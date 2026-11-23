@@ -1,6 +1,7 @@
 import type { youtube_v3 } from '@googleapis/youtube';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { loadConfig } from '../config.js';
 import { openGuardedFile } from '../files/file-guard.js';
 import { runTool, untrustedResult } from './result.js';
 import type { YouTubeFactory } from './youtube.js';
@@ -248,7 +249,7 @@ export function registerVideoTools(server: McpServer, yt: YouTubeFactory): void 
       title: 'List video categories',
       description: 'Lists video categories for a region (videoCategories.list). Costs 1 quota unit.',
       inputSchema: {
-        regionCode: z.string().regex(/^[A-Za-z]{2}$/).default('SK').describe('ISO 3166-1 alpha-2 country code.'),
+        regionCode: z.string().regex(/^[A-Za-z]{2}$/).default(loadConfig().region).describe('ISO 3166-1 alpha-2 country code.'),
       },
       annotations: READ_ONLY,
     },
