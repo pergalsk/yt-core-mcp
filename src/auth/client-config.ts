@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
 import { z } from 'zod';
+import { CLIENT_FILE_ENV, loadConfig } from '../config.js';
+
+export { CLIENT_FILE_ENV };
 
 /**
  * Google OAuth client of type "Desktop app" (JSON downloaded from Google Cloud Console).
@@ -20,15 +21,8 @@ export interface ClientConfig {
   clientSecret: string;
 }
 
-export const CLIENT_FILE_ENV = 'YT_CORE_MCP_CLIENT_FILE';
-
-export function defaultClientFilePath(): string {
-  const base = process.env.APPDATA ?? join(homedir(), '.config');
-  return join(base, 'yt-core-mcp', 'client_secret.json');
-}
-
 export function clientFilePath(): string {
-  return process.env[CLIENT_FILE_ENV] ?? defaultClientFilePath();
+  return loadConfig().clientFile;
 }
 
 export function parseClientConfig(json: string): ClientConfig {

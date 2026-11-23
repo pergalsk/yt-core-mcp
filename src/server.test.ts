@@ -1,8 +1,9 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { checkRefreshToken } from './auth/client.js';
 import { TokenStore } from './auth/token-store.js';
+import { MEDIA_ROOT_ENV, REGION_ENV, SERVER_VERSION, TIMEZONE_ENV } from './config.js';
 import { createServer } from './server.js';
 import type { YouTubeFactory } from './tools/youtube.js';
 
@@ -15,17 +16,31 @@ function store(value: string | null) {
   return new TokenStore({ get: () => value, set: () => undefined, delete: () => false });
 }
 
-async function authStatus(value: string | null): Promise<Record<string, unknown>> {
+async function connect(value: string | null = null) {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await createServer(store(value), vi.fn<YouTubeFactory>()).connect(serverTransport);
   const client = new Client({ name: 'test', version: '0' });
   await client.connect(clientTransport);
-  const res = await client.callTool({ name: 'auth_status', arguments: {} });
+  return client;
+}
+
+async function authStatus(value: string | null): Promise<Record<string, unknown>> {
+  const res = await (await connect(value)).callTool({ name: 'auth_status', arguments: {} });
   const [content] = res.content as [{ text: string }];
   return JSON.parse(content.text) as Record<string, unknown>;
 }
 
 const stored = JSON.stringify({ refreshToken: 'rt', scopes: ['https://www.googleapis.com/auth/youtube'] });
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
+describe('server', () => {
+  it('reports the version from package.json', async () => {
+    expect((await connect()).getServerVersion()?.version).toBe(SERVER_VERSION);
+  });
+});
 
 describe('auth_status', () => {
   beforeEach(() => {
@@ -52,5 +67,20 @@ describe('auth_status', () => {
     const status = await authStatus(stored);
     expect(status).toMatchObject({ loggedIn: true, tokenValid: false });
     expect(status.tokenError).toContain('invalid_grant');
+  });
+
+  it('shows the resolved config', async () => {
+    vi.stubEnv(TIMEZONE_ENV, 'UTC');
+    vi.stubEnv(REGION_ENV, 'CZ');
+    vi.stubEnv(MEDIA_ROOT_ENV, 'D:\\media');
+    expect(await authStatus(null)).toMatchObject({
+      loggedIn: false,
+      config: { timezone: 'UTC', region: 'CZ', mediaRootSet: true },
+    });
+  });
+
+  it('reports a missing media folder', async () => {
+    vi.stubEnv(MEDIA_ROOT_ENV, '');
+    expect(await authStatus(null)).toMatchObject({ config: { mediaRootSet: false } });
   });
 });
