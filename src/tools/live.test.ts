@@ -277,11 +277,13 @@ describe('live tools', () => {
       arguments: { broadcastId: BID, privacyStatus: 'public' },
     });
     expect(declined.isError).toBe(true);
+    expect(errorText(declined)).toMatch(/not confirmed/);
     const unsupported = await (await connect(yt.factory)).callTool({
       name: 'live_publish_broadcast',
       arguments: { broadcastId: BID, privacyStatus: 'unlisted' },
     });
     expect(unsupported.isError).toBe(true);
+    expect(errorText(unsupported)).toMatch(/does not support elicitation/);
     expect(yt.api.liveBroadcasts.update).not.toHaveBeenCalled();
   });
 
