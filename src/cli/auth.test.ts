@@ -70,6 +70,28 @@ describe('runAuthCli', () => {
     expect(logged()).toMatch(/Not granted .*: analytics/);
   });
 
+  it('--help explains that captions and comments share one scope', async () => {
+    await runAuthCli(['--help']);
+    expect(logged()).toMatch(/captions and comments groups share one OAuth scope/);
+  });
+
+  it.each([
+    ['captions', 'comments'],
+    ['comments', 'captions'],
+  ])('--add %s says that %s is granted too', async (group, other) => {
+    mocks.login.mockResolvedValue({ groups: ['core', 'captions', 'comments'], missing: [] });
+    expect(await runAuthCli(['--add', group])).toBe(0);
+    expect(mocks.login).toHaveBeenCalledWith(['core', group]);
+    expect(logged()).toMatch(new RegExp(`"${group}" shares its OAuth scope with ${other}, so ${other} will be granted too`));
+    expect(logged()).toMatch(/Granted groups: core, captions, comments/);
+  });
+
+  it('--add analytics prints no shared-scope note', async () => {
+    mocks.login.mockResolvedValue({ groups: ['core', 'analytics'], missing: [] });
+    await runAuthCli(['--add', 'analytics']);
+    expect(logged()).not.toMatch(/shares its OAuth scope/);
+  });
+
   it('rejects an unknown group without logging in', async () => {
     expect(await runAuthCli(['--add', 'nope'])).toBe(1);
     expect(mocks.login).not.toHaveBeenCalled();

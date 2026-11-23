@@ -104,6 +104,10 @@ describe('auth_status', () => {
     });
   });
 
+  it('says that captions and comments share one scope', async () => {
+    expect((await authStatus(null)).sharedScopes).toMatch(/captions and comments .*share one OAuth scope.*granting one grants the other/);
+  });
+
   it('reports a broken stored credential', async () => {
     expect(await authStatus('not json')).toMatchObject({ loggedIn: false, error: expect.stringMatching(/corrupted/) as unknown });
     expect(checkRefreshToken).not.toHaveBeenCalled();
