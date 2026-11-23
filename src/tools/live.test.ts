@@ -130,7 +130,7 @@ describe('live tools', () => {
     for (const name of ['live_update_broadcast', 'live_publish_broadcast']) {
       expect(ann(name)).toMatchObject({ readOnlyHint: false, destructiveHint: true, idempotentHint: true });
     }
-    expect(tools.filter((t) => t.name.startsWith('live_')).map((t) => t.name)).toHaveLength(6);
+    expect(tools.map((t) => t.name).filter((n) => /transition|start|stop/.test(n))).toEqual([]);
   });
 
   it('live_schedule_broadcast runs the full flow with private default', async () => {
