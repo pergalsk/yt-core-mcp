@@ -188,11 +188,11 @@ describe('upload and playlist tools', () => {
     const yt = fakeYouTube();
     const result = await (await connect(yt.factory)).callTool({
       name: 'playlist_add_item',
-      arguments: { playlistId: 'PL1', videoId: 'v1', position: 0 },
+      arguments: { playlistId: 'PL1', videoId: 'dQw4w9WgXcQ', position: 0 },
     });
     expect(yt.playlistItemsInsert).toHaveBeenCalledWith({
       part: ['snippet'],
-      requestBody: { snippet: { playlistId: 'PL1', resourceId: { kind: 'youtube#video', videoId: 'v1' }, position: 0 } },
+      requestBody: { snippet: { playlistId: 'PL1', resourceId: { kind: 'youtube#video', videoId: 'dQw4w9WgXcQ' }, position: 0 } },
     });
     expect(parseText(result)).toEqual({
       notice: UNTRUSTED_NOTICE,
@@ -209,12 +209,12 @@ describe('upload and playlist tools', () => {
     });
   });
 
-  it('playlist_add_item rejects invalid ids without calling the API', async () => {
+  it.each([
+    { playlistId: '../x', videoId: 'dQw4w9WgXcQ' },
+    { playlistId: 'PL1', videoId: 'v1' },
+  ])('playlist_add_item rejects invalid ids without calling the API (%o)', async (args) => {
     const yt = fakeYouTube();
-    const result = await (await connect(yt.factory)).callTool({
-      name: 'playlist_add_item',
-      arguments: { playlistId: '../x', videoId: 'v1' },
-    });
+    const result = await (await connect(yt.factory)).callTool({ name: 'playlist_add_item', arguments: args });
     expect(result.isError).toBe(true);
     expect(yt.playlistItemsInsert).not.toHaveBeenCalled();
   });

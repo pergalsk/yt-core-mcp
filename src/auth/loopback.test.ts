@@ -21,11 +21,15 @@ describe('startLoopbackReceiver', () => {
     await expect(r.code).resolves.toBe('abc');
   });
 
-  it('rejects on state mismatch (CSRF)', async () => {
+  it('rejects a state mismatch (CSRF) but keeps waiting for the real redirect', async () => {
     const r = await startLoopbackReceiver('good-state');
-    const res = await hit(r.redirectUri, 'code=abc&state=evil');
-    expect(res.status).toBe(400);
-    await expect(r.code).rejects.toThrow('state mismatch');
+    const bad = await hit(r.redirectUri, 'code=evil&state=evil');
+    expect(bad.status).toBe(400);
+    const badError = await hit(r.redirectUri, 'error=access_denied&state=evil');
+    expect(badError.status).toBe(400);
+    const good = await hit(r.redirectUri, 'code=abc&state=good-state');
+    expect(good.status).toBe(200);
+    await expect(r.code).resolves.toBe('abc');
   });
 
   it('does not reflect error text into HTML and sanitizes it for the terminal', async () => {

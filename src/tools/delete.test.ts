@@ -11,7 +11,9 @@ const emptyStore = new TokenStore({ get: () => null, set: () => undefined, delet
 
 function api(title?: string) {
   return {
-    list: vi.fn().mockResolvedValue({ data: { items: title === undefined ? [] : [{ snippet: { title } }] } }),
+    list: vi.fn().mockResolvedValue({
+      data: { items: title === undefined ? [] : [{ snippet: { title, channelId: 'UCmine' } }] },
+    }),
     delete: vi.fn().mockResolvedValue({ data: '' }),
   };
 }
@@ -20,9 +22,10 @@ function fakeYouTube(title?: string) {
   const videos = api(title);
   const liveBroadcasts = api(title);
   const playlistItems = api(title);
-  const client = { videos, liveBroadcasts, playlistItems } as unknown as youtube_v3.Youtube;
+  const channels = { list: vi.fn().mockResolvedValue({ data: { items: [{ id: 'UCmine' }] } }) };
+  const client = { videos, liveBroadcasts, playlistItems, channels } as unknown as youtube_v3.Youtube;
   const factory = vi.fn<YouTubeFactory>(() => client);
-  return { factory, videos, liveBroadcasts, playlistItems };
+  return { factory, videos, liveBroadcasts, playlistItems, channels };
 }
 
 /** Connects a test client; pass `elicit` to make the client support elicitation. */
@@ -44,7 +47,7 @@ const cases = [
 const accept = (): ElicitResult => ({ action: 'accept', content: { confirm: true } });
 
 describe.each(cases)('$tool', ({ tool, arg, api: apiName }) => {
-  const call = { name: tool, arguments: { [arg]: 'abc123' } };
+  const call = { name: tool, arguments: { [arg]: 'abc123def45' } };
 
   it('has destructive annotations', async () => {
     const client = await connect(fakeYouTube().factory);
@@ -64,9 +67,9 @@ describe.each(cases)('$tool', ({ tool, arg, api: apiName }) => {
     const result = await client.callTool(call);
 
     expect(yt.factory).toHaveBeenCalledWith('core');
-    expect(yt[apiName].list).toHaveBeenCalledWith({ part: ['snippet'], id: ['abc123'] });
+    expect(yt[apiName].list).toHaveBeenCalledWith({ part: ['snippet'], id: ['abc123def45'] });
     expect(elicit.mock.calls[0]?.[0]).toContain('"My title"');
-    expect(yt[apiName].delete).toHaveBeenCalledWith({ id: 'abc123' });
+    expect(yt[apiName].delete).toHaveBeenCalledWith({ id: 'abc123def45' });
     expect(result.isError).toBeFalsy();
   });
 
@@ -100,5 +103,37 @@ describe.each(cases)('$tool', ({ tool, arg, api: apiName }) => {
     expect(result.isError).toBe(true);
     expect(elicit).not.toHaveBeenCalled();
     expect(yt[apiName].delete).not.toHaveBeenCalled();
+  });
+});
+
+it('video_delete rejects ids that are not 11-character video ids', async () => {
+  const yt = fakeYouTube('My title');
+  const client = await connect(yt.factory, accept);
+  const result = await client.callTool({ name: 'video_delete', arguments: { videoId: 'abc123' } });
+  expect(result.isError).toBe(true);
+  expect(yt.videos.list).not.toHaveBeenCalled();
+  expect(yt.videos.delete).not.toHaveBeenCalled();
+});
+
+describe('video_delete ownership', () => {
+  const call = { name: 'video_delete', arguments: { videoId: 'abc123def45' } };
+
+  it('checks the video belongs to my channel', async () => {
+    const yt = fakeYouTube('My title');
+    const client = await connect(yt.factory, accept);
+    await client.callTool(call);
+    expect(yt.channels.list).toHaveBeenCalledWith({ part: ['id'], mine: true });
+  });
+
+  it('refuses a foreign video without asking', async () => {
+    const yt = fakeYouTube('Not mine');
+    yt.channels.list.mockResolvedValue({ data: { items: [{ id: 'UCother' }] } });
+    const elicit = vi.fn(accept);
+    const client = await connect(yt.factory, elicit);
+    const result = await client.callTool(call);
+    expect(result.isError).toBe(true);
+    expect((result.content as { text: string }[])[0]?.text).toMatch(/not your video/);
+    expect(elicit).not.toHaveBeenCalled();
+    expect(yt.videos.delete).not.toHaveBeenCalled();
   });
 });

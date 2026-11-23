@@ -36,8 +36,14 @@ export async function runAuthCli(argv: string[]): Promise<number> {
   }
 
   if (values.logout) {
-    log((await logout()) ? 'Logged out (token revoked and removed).' : 'No stored token.');
-    return 0;
+    const result = await logout();
+    if (!result) {
+      log('No stored token.');
+      return 0;
+    }
+    log(result.revoked ? 'Token revoked at Google.' : 'Failed to revoke the token at Google.');
+    log(result.removed ? 'Token removed locally.' : 'Failed to remove the local token.');
+    return result.revoked && result.removed ? 0 : 1;
   }
 
   const requested: ScopeGroup[] = ['core'];

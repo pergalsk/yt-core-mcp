@@ -34,3 +34,19 @@ export function getAuthorizedClient(group: ScopeGroup, store = new TokenStore())
   });
   return client;
 }
+
+/**
+ * Tries to get an access token with the stored refresh token.
+ * Returns null if it works, otherwise the error message (e.g. `invalid_grant` for an expired or revoked token).
+ */
+export async function checkRefreshToken(refreshToken: string): Promise<string | null> {
+  try {
+    const { clientId, clientSecret } = loadClientConfig();
+    const client = new OAuth2Client({ clientId, clientSecret });
+    client.setCredentials({ refresh_token: refreshToken });
+    await client.getAccessToken();
+    return null;
+  } catch (err) {
+    return err instanceof Error ? err.message : 'Unknown error';
+  }
+}

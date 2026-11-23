@@ -46,11 +46,13 @@ describe('runAuthCli', () => {
   });
 
   it.each([
-    [true, /Logged out/],
-    [false, /No stored token/],
-  ])('--logout (removed: %s)', async (removed, message) => {
-    mocks.logout.mockResolvedValue(removed);
-    expect(await runAuthCli(['--logout'])).toBe(0);
+    [null, 0, /No stored token/],
+    [{ revoked: true, removed: true }, 0, /Token revoked at Google\.\nToken removed locally\./],
+    [{ revoked: false, removed: true }, 1, /Failed to revoke the token at Google\.\nToken removed locally\./],
+    [{ revoked: true, removed: false }, 1, /Failed to remove the local token/],
+  ])('--logout (%o)', async (result, code, message) => {
+    mocks.logout.mockResolvedValue(result);
+    expect(await runAuthCli(['--logout'])).toBe(code);
     expect(logged()).toMatch(message);
   });
 

@@ -1,29 +1,49 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { checkRefreshToken } from './auth/client.js';
 import { SCOPE_GROUPS } from './auth/scopes.js';
-import { TokenStore, type SecretBackend } from './auth/token-store.js';
+import { TokenStore } from './auth/token-store.js';
+import { MEDIA_ROOT_ENV, REGION_ENV, SERVER_VERSION, TIMEZONE_ENV } from './config.js';
 import { createServer } from './server.js';
 import type { YouTubeFactory } from './tools/youtube.js';
 
-async function connect(get: SecretBackend['get']) {
-  const store = new TokenStore({ get, set: () => undefined, delete: () => false });
+vi.mock('./auth/client.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./auth/client.js')>()),
+  checkRefreshToken: vi.fn(),
+}));
+
+function store(value: string | null) {
+  return new TokenStore({ get: () => value, set: () => undefined, delete: () => false });
+}
+
+async function connect(value: string | null = null) {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  await createServer(store, vi.fn<YouTubeFactory>()).connect(serverTransport);
+  await createServer(store(value), vi.fn<YouTubeFactory>()).connect(serverTransport);
   const client = new Client({ name: 'test', version: '0' });
   await client.connect(clientTransport);
   return client;
 }
 
-async function authStatus(get: SecretBackend['get']): Promise<unknown> {
-  const result = await (await connect(get)).callTool({ name: 'auth_status', arguments: {} });
-  const content = result.content as { text: string }[];
-  return JSON.parse(content[0]?.text ?? '');
+async function authStatus(value: string | null): Promise<Record<string, unknown>> {
+  const res = await (await connect(value)).callTool({ name: 'auth_status', arguments: {} });
+  const [content] = res.content as [{ text: string }];
+  return JSON.parse(content.text) as Record<string, unknown>;
 }
 
-describe('createServer', () => {
+const stored = JSON.stringify({ refreshToken: 'rt', scopes: ['https://www.googleapis.com/auth/youtube'] });
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
+describe('server', () => {
+  it('reports the version from package.json', async () => {
+    expect((await connect()).getServerVersion()?.version).toBe(SERVER_VERSION);
+  });
+
   it('registers all tools', async () => {
-    const { tools } = await (await connect(() => null)).listTools();
+    const { tools } = await (await connect()).listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
       'analytics_daily',
       'analytics_demographics',
@@ -61,25 +81,61 @@ describe('createServer', () => {
       'videos_trending',
     ]);
   });
+});
 
-  it('auth_status when not logged in', async () => {
-    expect(await authStatus(() => null)).toEqual({
-      loggedIn: false,
-      grantedGroups: [],
-      notGranted: ['core', 'captions', 'comments', 'analytics'],
-    });
+describe('auth_status', () => {
+  beforeEach(() => {
+    vi.mocked(checkRefreshToken).mockReset();
   });
 
-  it('auth_status lists granted and missing groups', async () => {
-    const stored = JSON.stringify({ refreshToken: 'r', scopes: [...SCOPE_GROUPS.core, ...SCOPE_GROUPS.captions] });
-    expect(await authStatus(() => stored)).toEqual({
-      loggedIn: true,
+  it('does not check a token when not logged in', async () => {
+    const status = await authStatus(null);
+    expect(status.loggedIn).toBe(false);
+    expect(status).not.toHaveProperty('tokenValid');
+    expect(checkRefreshToken).not.toHaveBeenCalled();
+  });
+
+  it('lists granted and missing groups', async () => {
+    vi.mocked(checkRefreshToken).mockResolvedValue(null);
+    const value = JSON.stringify({ refreshToken: 'rt', scopes: [...SCOPE_GROUPS.core, ...SCOPE_GROUPS.captions] });
+    expect(await authStatus(value)).toMatchObject({
       grantedGroups: ['core', 'captions', 'comments'],
       notGranted: ['analytics'],
     });
   });
 
-  it('auth_status reports a broken stored credential', async () => {
-    expect(await authStatus(() => 'not json')).toEqual({ loggedIn: false, error: expect.stringMatching(/corrupted/) as unknown });
+  it('reports a broken stored credential', async () => {
+    expect(await authStatus('not json')).toMatchObject({ loggedIn: false, error: expect.stringMatching(/corrupted/) as unknown });
+    expect(checkRefreshToken).not.toHaveBeenCalled();
+  });
+
+  it('reports a working token', async () => {
+    vi.mocked(checkRefreshToken).mockResolvedValue(null);
+    const status = await authStatus(stored);
+    expect(status).toMatchObject({ loggedIn: true, tokenValid: true });
+    expect(status).not.toHaveProperty('tokenError');
+    expect(checkRefreshToken).toHaveBeenCalledWith('rt');
+  });
+
+  it('reports a token that no longer works', async () => {
+    vi.mocked(checkRefreshToken).mockResolvedValue('invalid_grant');
+    const status = await authStatus(stored);
+    expect(status).toMatchObject({ loggedIn: true, tokenValid: false });
+    expect(status.tokenError).toContain('invalid_grant');
+  });
+
+  it('shows the resolved config', async () => {
+    vi.stubEnv(TIMEZONE_ENV, 'UTC');
+    vi.stubEnv(REGION_ENV, 'CZ');
+    vi.stubEnv(MEDIA_ROOT_ENV, 'D:\\media');
+    expect(await authStatus(null)).toMatchObject({
+      loggedIn: false,
+      config: { timezone: 'UTC', region: 'CZ', mediaRootSet: true },
+    });
+  });
+
+  it('reports a missing media folder', async () => {
+    vi.stubEnv(MEDIA_ROOT_ENV, '');
+    expect(await authStatus(null)).toMatchObject({ config: { mediaRootSet: false } });
   });
 });

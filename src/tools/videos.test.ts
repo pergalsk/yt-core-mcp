@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Readable } from 'node:stream';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { REGION_ENV } from '../config.js';
 import { TokenStore } from '../auth/token-store.js';
 import { MEDIA_ROOT_ENV } from '../files/file-guard.js';
 import { createServer } from '../server.js';
@@ -62,7 +63,13 @@ function fakeYouTube() {
       list: vi.fn().mockResolvedValue({
         data: {
           nextPageToken: 'N',
-          items: [{ snippet: { title: 'T', publishedAt: 'p', resourceId: { videoId: VID } }, status: { privacyStatus: 'unlisted' } }],
+          items: [
+            {
+              snippet: { title: 'T', publishedAt: 'added', resourceId: { videoId: VID } },
+              status: { privacyStatus: 'unlisted' },
+              contentDetails: { videoPublishedAt: 'published' },
+            },
+          ],
         },
       }),
     },
@@ -197,10 +204,10 @@ describe('video tools', () => {
     const yt = fakeYouTube();
     const result = await (await connect(yt.factory)).callTool({ name: 'video_list', arguments: { maxResults: 5 } });
     expect(yt.api.channels.list).toHaveBeenCalledWith({ part: ['contentDetails'], mine: true });
-    expect(yt.api.playlistItems.list).toHaveBeenCalledWith({ part: ['snippet', 'status'], playlistId: 'UU1', maxResults: 5 });
+    expect(yt.api.playlistItems.list).toHaveBeenCalledWith({ part: ['snippet', 'status', 'contentDetails'], playlistId: 'UU1', maxResults: 5 });
     expect(parseText(result)).toEqual({
       notice: UNTRUSTED_NOTICE,
-      untrustedData: { nextPageToken: 'N', items: [{ id: VID, title: 'T', publishedAt: 'p', privacyStatus: 'unlisted' }] },
+      untrustedData: { nextPageToken: 'N', items: [{ id: VID, title: 'T', publishedAt: 'published', privacyStatus: 'unlisted' }] },
     });
   });
 
@@ -221,5 +228,13 @@ describe('video tools', () => {
     const result = await (await connect(yt.factory)).callTool({ name: 'categories_list', arguments: {} });
     expect(yt.api.videoCategories.list).toHaveBeenCalledWith({ part: ['snippet'], regionCode: 'SK' });
     expect(parseText(result)).toMatchObject({ untrustedData: [{ id: '22', title: 'People & Blogs', assignable: true }] });
+  });
+
+  it('categories_list uses the region from YT_CORE_MCP_REGION by default', async () => {
+    vi.stubEnv(REGION_ENV, 'US');
+    const yt = fakeYouTube();
+    await (await connect(yt.factory)).callTool({ name: 'categories_list', arguments: {} });
+    expect(yt.api.videoCategories.list).toHaveBeenCalledWith({ part: ['snippet'], regionCode: 'US' });
+    vi.stubEnv(REGION_ENV, undefined);
   });
 });

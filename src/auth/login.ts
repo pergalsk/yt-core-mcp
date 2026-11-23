@@ -60,15 +60,24 @@ export async function login(requested: ScopeGroup[], store = new TokenStore()): 
   }
 }
 
-/** Revoke the refresh token at Google (official recommendation) and remove it locally. */
-export async function logout(store = new TokenStore()): Promise<boolean> {
+export interface LogoutResult {
+  revoked: boolean;
+  removed: boolean;
+}
+
+/**
+ * Revoke the refresh token at Google (official recommendation) and remove it locally.
+ * Returns null when no token is stored.
+ */
+export async function logout(store = new TokenStore()): Promise<LogoutResult | null> {
   const existing = store.load();
-  if (!existing) return false;
+  if (!existing) return null;
+  let revoked = true;
   try {
     const { clientId, clientSecret } = loadClientConfig();
     await new OAuth2Client({ clientId, clientSecret }).revokeToken(existing.refreshToken);
   } catch {
-    log('Warning: could not revoke the token at Google; removing it locally anyway.');
+    revoked = false;
   }
-  return store.clear();
+  return { revoked, removed: store.clear() };
 }

@@ -1,5 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { checkRefreshToken } from './auth/client.js';
+import { loadConfig, SERVER_VERSION } from './config.js';
 import { grantedGroups, ALL_GROUPS } from './auth/scopes.js';
 import { TokenStore } from './auth/token-store.js';
 import { analyticsFactory, registerAnalyticsTools } from './tools/analytics.js';
@@ -13,18 +15,20 @@ import { registerVideoTools } from './tools/videos.js';
 import { youtubeFactory, type YouTubeFactory } from './tools/youtube.js';
 
 export function createServer(store = new TokenStore(), yt: YouTubeFactory = youtubeFactory(store)): McpServer {
-  const server = new McpServer({ name: 'yt-core-mcp', version: '0.1.0' });
+  const server = new McpServer({ name: 'yt-core-mcp', version: SERVER_VERSION });
 
   server.registerTool(
     'auth_status',
     {
       title: 'Auth status',
       description:
-        'Shows whether yt-core-mcp is logged in to YouTube and which permission groups are granted. ' +
+        'Shows whether yt-core-mcp is logged in to YouTube, whether the stored token still works, ' +
+        'which permission groups are granted and the resolved config (default timezone and region, ' +
+        'whether the media folder is set). ' +
         'Login itself can only be done by the user in a terminal (`yt-core-mcp auth`).',
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
-    () => {
+    async () => {
       let result: Record<string, unknown>;
       try {
         const stored = store.load();
@@ -34,9 +38,18 @@ export function createServer(store = new TokenStore(), yt: YouTubeFactory = yout
           grantedGroups: granted,
           notGranted: ALL_GROUPS.filter((g) => !granted.includes(g)),
         };
+        if (stored) {
+          const tokenError = await checkRefreshToken(stored.refreshToken);
+          result.tokenValid = tokenError === null;
+          if (tokenError !== null) {
+            result.tokenError = `${tokenError} — run \`yt-core-mcp auth\` in a terminal to log in again.`;
+          }
+        }
       } catch (err) {
         result = { loggedIn: false, error: err instanceof Error ? err.message : 'Unknown error' };
       }
+      const config = loadConfig();
+      result.config = { timezone: config.timezone, region: config.region, mediaRootSet: Boolean(config.mediaRoot) };
       return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
     },
   );

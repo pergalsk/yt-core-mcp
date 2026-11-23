@@ -6,6 +6,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { TIMEZONE_ENV } from '../config.js';
 import { TokenStore } from '../auth/token-store.js';
 import { MEDIA_ROOT_ENV } from '../files/file-guard.js';
 import { createServer } from '../server.js';
@@ -193,6 +194,20 @@ describe('live tools', () => {
     expect(parseData(result)).toMatchObject({
       steps: { insert: 'ok', bind: 'skipped', thumbnail: 'skipped', videoDetails: 'skipped', playlist: 'skipped' },
     });
+  });
+
+  it('live_schedule_broadcast uses the time zone from YT_CORE_MCP_TIMEZONE by default', async () => {
+    vi.stubEnv(TIMEZONE_ENV, 'UTC');
+    const yt = fakeYouTube();
+    await (await connect(yt.factory)).callTool({
+      name: 'live_schedule_broadcast',
+      arguments: { title: 'Live', startTime: '2026-12-01T19:00' },
+    });
+    expect(yt.api.liveBroadcasts.insert).toHaveBeenCalledWith({
+      part: ['snippet', 'status'],
+      requestBody: { snippet: { title: 'Live', scheduledStartTime: '2026-12-01T19:00:00.000Z' }, status: { privacyStatus: 'private' } },
+    });
+    vi.stubEnv(TIMEZONE_ENV, undefined);
   });
 
   it('live_schedule_broadcast reports a failed step and keeps the broadcast', async () => {
