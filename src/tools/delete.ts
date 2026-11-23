@@ -25,7 +25,7 @@ export function registerDeleteTools(server: McpServer, yt: YouTubeFactory): void
     {
       title: 'Delete video',
       description:
-        'Permanently deletes one of your videos (videos.delete). Costs 51 quota units. ' +
+        'Permanently deletes one of your videos (videos.delete). Costs 52 quota units. ' +
         'The user must confirm in the client; refused if the client cannot ask for confirmation.',
       inputSchema: { videoId },
       annotations: DELETE,
@@ -35,6 +35,12 @@ export function registerDeleteTools(server: McpServer, yt: YouTubeFactory): void
         const api = yt('core');
         const res = await api.videos.list({ part: ['snippet'], id: [args.videoId] });
         const item = res.data.items?.[0];
+        if (item) {
+          const mine = (await api.channels.list({ part: ['id'], mine: true })).data.items?.[0]?.id;
+          if (!mine || item.snippet?.channelId !== mine) {
+            throw new Error(`Video ${args.videoId} is not your video. Nothing was deleted.`);
+          }
+        }
         return confirmAndDelete(server, `video ${args.videoId}`, item && item.snippet?.title, () =>
           api.videos.delete({ id: args.videoId }),
         );
@@ -46,7 +52,8 @@ export function registerDeleteTools(server: McpServer, yt: YouTubeFactory): void
     {
       title: 'Delete live broadcast',
       description:
-        'Permanently deletes one of your live broadcasts (liveBroadcasts.delete). Costs 51 quota units. ' +
+        'Permanently deletes one of your live broadcasts (liveBroadcasts.delete), including its video/VOD. ' +
+        'Costs 51 quota units. ' +
         'The user must confirm in the client; refused if the client cannot ask for confirmation.',
       inputSchema: { broadcastId: resourceId },
       annotations: DELETE,

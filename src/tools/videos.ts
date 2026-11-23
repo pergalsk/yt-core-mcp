@@ -180,7 +180,7 @@ export function registerVideoTools(server: McpServer, yt: YouTubeFactory): void 
         const uploads = channel?.contentDetails?.relatedPlaylists?.uploads;
         if (!uploads) throw new Error('No YouTube channel found for this account.');
         const res = await api.playlistItems.list({
-          part: ['snippet', 'status'],
+          part: ['snippet', 'status', 'contentDetails'],
           playlistId: uploads,
           maxResults: args.maxResults,
           ...(args.pageToken ? { pageToken: args.pageToken } : {}),
@@ -190,7 +190,7 @@ export function registerVideoTools(server: McpServer, yt: YouTubeFactory): void 
           items: (res.data.items ?? []).map((i) => ({
             id: i.snippet?.resourceId?.videoId,
             title: i.snippet?.title,
-            publishedAt: i.snippet?.publishedAt,
+            publishedAt: i.contentDetails?.videoPublishedAt,
             privacyStatus: i.status?.privacyStatus,
           })),
         });
