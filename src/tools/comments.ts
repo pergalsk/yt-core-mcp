@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { confirmAction } from './confirm.js';
 import { READ_ONLY, WRITE } from './annotations.js';
-import { runTool, untrustedResult } from './result.js';
+import { jsonResult, runTool, untrustedResult } from './result.js';
 import { pageToken, videoId } from './schemas.js';
 import type { YouTubeFactory } from './youtube.js';
 
@@ -71,8 +71,7 @@ export function registerCommentTools(server: McpServer, yt: YouTubeFactory): voi
           part: ['snippet'],
           requestBody: { snippet: { parentId: args.parentId, textOriginal: args.text } },
         });
-        const result = { id: res.data.id, parentId: args.parentId };
-        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+        return jsonResult({ id: res.data.id, parentId: args.parentId });
       }),
   );
 }

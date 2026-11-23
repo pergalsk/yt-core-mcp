@@ -9,6 +9,7 @@ import { registerCaptionTools } from './tools/captions.js';
 import { registerCommentTools } from './tools/comments.js';
 import { registerDeleteTools } from './tools/delete.js';
 import { registerLiveTools } from './tools/live.js';
+import { jsonResult, runTool } from './tools/result.js';
 import { registerSearchTools } from './tools/search.js';
 import { registerUploadAndPlaylistTools } from './tools/upload-playlists.js';
 import { registerVideoTools } from './tools/videos.js';
@@ -28,30 +29,31 @@ export function createServer(store = new TokenStore(), yt: YouTubeFactory = yout
         'Login itself can only be done by the user in a terminal (`yt-core-mcp auth`).',
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
-    async () => {
-      let result: Record<string, unknown>;
-      try {
-        const stored = store.load();
-        const granted = stored ? grantedGroups(stored.scopes) : [];
-        result = {
-          loggedIn: stored !== null,
-          grantedGroups: granted,
-          notGranted: ALL_GROUPS.filter((g) => !granted.includes(g)),
-        };
-        if (stored) {
-          const tokenError = await checkRefreshToken(stored.refreshToken);
-          result.tokenValid = tokenError === null;
-          if (tokenError !== null) {
-            result.tokenError = `${tokenError} — run \`yt-core-mcp auth\` in a terminal to log in again.`;
+    () =>
+      runTool(async () => {
+        let result: Record<string, unknown>;
+        try {
+          const stored = store.load();
+          const granted = stored ? grantedGroups(stored.scopes) : [];
+          result = {
+            loggedIn: stored !== null,
+            grantedGroups: granted,
+            notGranted: ALL_GROUPS.filter((g) => !granted.includes(g)),
+          };
+          if (stored) {
+            const tokenError = await checkRefreshToken(stored.refreshToken);
+            result.tokenValid = tokenError === null;
+            if (tokenError !== null) {
+              result.tokenError = `${tokenError} — run \`yt-core-mcp auth\` in a terminal to log in again.`;
+            }
           }
+        } catch (err) {
+          result = { loggedIn: false, error: err instanceof Error ? err.message : 'Unknown error' };
         }
-      } catch (err) {
-        result = { loggedIn: false, error: err instanceof Error ? err.message : 'Unknown error' };
-      }
-      const config = loadConfig();
-      result.config = { timezone: config.timezone, region: config.region, mediaRootSet: Boolean(config.mediaRoot) };
-      return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
-    },
+        const config = loadConfig();
+        result.config = { timezone: config.timezone, region: config.region, mediaRootSet: Boolean(config.mediaRoot) };
+        return jsonResult(result);
+      }),
   );
 
   registerSearchTools(server, yt);

@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { AuthRequiredError } from '../auth/client.js';
-import { errorResult, runTool, untrustedResult, UNTRUSTED_NOTICE } from './result.js';
+import { errorResult, jsonResult, runTool, untrustedResult, UNTRUSTED_NOTICE } from './result.js';
 
 describe('tool results', () => {
+  it('returns plain JSON data', () => {
+    expect(jsonResult({ deleted: true })).toEqual({
+      content: [{ type: 'text', text: JSON.stringify({ deleted: true }, null, 2) }],
+    });
+  });
+
   it('wraps data with an untrusted-content notice', () => {
     const result = untrustedResult({ title: 'x' });
     const content = result.content[0];

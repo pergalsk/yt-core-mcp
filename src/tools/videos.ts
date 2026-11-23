@@ -5,7 +5,7 @@ import { loadConfig } from '../config.js';
 import { openGuardedFile } from '../files/file-guard.js';
 import { defined } from '../util/defined.js';
 import { OVERWRITE, READ_ONLY } from './annotations.js';
-import { runTool, untrustedResult } from './result.js';
+import { jsonResult, runTool, untrustedResult } from './result.js';
 import { description, maxResults, pageToken, tags, title, videoId } from './schemas.js';
 import type { YouTubeFactory } from './youtube.js';
 
@@ -102,7 +102,7 @@ export function registerVideoTools(server: McpServer, yt: YouTubeFactory): void 
     (args) =>
       runTool(async () => {
         const data = await setThumbnail(yt('core'), args.videoId, args.path);
-        return { content: [{ type: 'text', text: JSON.stringify({ videoId: args.videoId, thumbnails: data.items }, null, 2) }] };
+        return jsonResult({ videoId: args.videoId, thumbnails: data.items });
       }),
   );
 
