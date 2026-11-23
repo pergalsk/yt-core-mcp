@@ -1,10 +1,10 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { openGuardedFile } from '../files/file-guard.js';
+import { READ_ONLY, WRITE } from './annotations.js';
 import { runTool, untrustedResult } from './result.js';
+import { videoId } from './schemas.js';
 import type { YouTubeFactory } from './youtube.js';
-
-const videoId = z.string().regex(/^[\w-]{11}$/).describe('YouTube video id (11 characters).');
 
 export function registerCaptionTools(server: McpServer, yt: YouTubeFactory): void {
   server.registerTool(
@@ -15,7 +15,7 @@ export function registerCaptionTools(server: McpServer, yt: YouTubeFactory): voi
         'Lists caption tracks of one of your videos (YouTube Data API captions.list). Costs 50 quota units. ' +
         'Needs the `captions` permission group.',
       inputSchema: { videoId },
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+      annotations: READ_ONLY,
     },
     (args) =>
       runTool(async () => {
@@ -52,7 +52,7 @@ export function registerCaptionTools(server: McpServer, yt: YouTubeFactory): voi
         name: z.string().max(150).default('').describe('Track name shown to viewers (max 150 characters).'),
         isDraft: z.boolean().default(false).describe('Upload as draft (not visible to viewers).'),
       },
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+      annotations: WRITE,
     },
     (args) =>
       runTool(async () => {

@@ -1,7 +1,9 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { confirmAction } from './confirm.js';
+import { READ_ONLY, WRITE } from './annotations.js';
 import { runTool, untrustedResult } from './result.js';
+import { pageToken, videoId } from './schemas.js';
 import type { YouTubeFactory } from './youtube.js';
 
 export function registerCommentTools(server: McpServer, yt: YouTubeFactory): void {
@@ -13,12 +15,12 @@ export function registerCommentTools(server: McpServer, yt: YouTubeFactory): voi
         'Lists top-level comment threads of a video (YouTube Data API commentThreads.list). Costs 1 quota unit. ' +
         'Use topLevelCommentId as parentId for comment_reply.',
       inputSchema: {
-        videoId: z.string().regex(/^[\w-]{11}$/).describe('YouTube video id.'),
+        videoId,
         order: z.enum(['time', 'relevance']).default('time'),
         maxResults: z.number().int().min(1).max(100).default(20).describe('Results per page (1-100).'),
-        pageToken: z.string().max(200).optional().describe('nextPageToken from a previous call.'),
+        pageToken,
       },
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+      annotations: READ_ONLY,
     },
     (args) =>
       runTool(async () => {
@@ -60,7 +62,7 @@ export function registerCommentTools(server: McpServer, yt: YouTubeFactory): voi
         parentId: z.string().min(1).max(200).describe('Id of the top-level comment to reply to (topLevelCommentId).'),
         text: z.string().min(1).max(10000).describe('Reply text.'),
       },
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+      annotations: WRITE,
     },
     (args) =>
       runTool(async () => {
