@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { checkRefreshToken } from './auth/client.js';
 import { loadConfig, SERVER_VERSION } from './config.js';
-import { grantedGroups, ALL_GROUPS } from './auth/scopes.js';
+import { grantedGroups, ALL_GROUPS, SHARED_SCOPE_NOTE } from './auth/scopes.js';
 import { TokenStore } from './auth/token-store.js';
 import { analyticsFactory, registerAnalyticsTools } from './tools/analytics.js';
 import { registerCaptionTools } from './tools/captions.js';
@@ -39,6 +39,7 @@ export function createServer(store = new TokenStore(), yt: YouTubeFactory = yout
             loggedIn: stored !== null,
             grantedGroups: granted,
             notGranted: ALL_GROUPS.filter((g) => !granted.includes(g)),
+            sharedScopes: SHARED_SCOPE_NOTE,
           };
           if (stored) {
             const tokenError = await checkRefreshToken(stored.refreshToken);

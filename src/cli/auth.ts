@@ -1,6 +1,6 @@
 import { parseArgs } from 'node:util';
 import { login, logout } from '../auth/login.js';
-import { ALL_GROUPS, grantedGroups, isScopeGroup, type ScopeGroup } from '../auth/scopes.js';
+import { ALL_GROUPS, grantedGroups, isScopeGroup, SHARED_SCOPE_NOTE, sharedWith, type ScopeGroup } from '../auth/scopes.js';
 import { TokenStore } from '../auth/token-store.js';
 import { clientFilePath } from '../auth/client-config.js';
 import { log } from '../util/log.js';
@@ -9,7 +9,9 @@ const USAGE = `Usage:
   yt-core-mcp auth                 Log in (core YouTube permission)
   yt-core-mcp auth --add <group>   Add a permission group (${ALL_GROUPS.join(', ')})
   yt-core-mcp auth --status        Show login status
-  yt-core-mcp auth --logout        Revoke and remove the stored token`;
+  yt-core-mcp auth --logout        Revoke and remove the stored token
+
+${SHARED_SCOPE_NOTE}`;
 
 export async function runAuthCli(argv: string[]): Promise<number> {
   const { values } = parseArgs({
@@ -53,6 +55,10 @@ export async function runAuthCli(argv: string[]): Promise<number> {
       return 1;
     }
     requested.push(g);
+    const shared = sharedWith(g);
+    if (shared.length > 0) {
+      log(`Note: "${g}" shares its OAuth scope with ${shared.join(', ')}, so ${shared.join(', ')} will be granted too.`);
+    }
   }
 
   const { groups, missing } = await login(requested);
