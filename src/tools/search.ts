@@ -20,7 +20,8 @@ export function registerSearchTools(server: McpServer, yt: YouTubeFactory): void
       title: 'Search YouTube',
       description:
         'Searches public YouTube videos, channels or playlists (YouTube Data API search.list). ' +
-        'WARNING: every call costs 100 quota units (default daily quota is 10,000), so search only when needed.',
+        'WARNING: every call costs 100 quota units (default daily quota is 10,000), so search only when needed. ' +
+        'Needs the `core` permission group.',
       inputSchema: {
         q: z.string().min(1).max(500).describe('Search query.'),
         type: z.enum(['video', 'channel', 'playlist']).default('video'),
@@ -61,7 +62,8 @@ export function registerSearchTools(server: McpServer, yt: YouTubeFactory): void
     {
       title: 'Trending videos',
       description:
-        'Lists the most popular videos in a region (YouTube Data API videos.list chart=mostPopular). Costs 1 quota unit.',
+        'Lists the most popular videos in a region (YouTube Data API videos.list chart=mostPopular). Costs 1 quota unit. ' +
+        'Needs the `core` permission group.',
       inputSchema: {
         regionCode: z
           .string()

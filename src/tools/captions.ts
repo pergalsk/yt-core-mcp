@@ -13,7 +13,7 @@ export function registerCaptionTools(server: McpServer, yt: YouTubeFactory): voi
       title: 'List captions',
       description:
         'Lists caption tracks of one of your videos (YouTube Data API captions.list). Costs 50 quota units. ' +
-        'Needs the `captions` permission group.',
+        'Needs the `captions` permission group (shares its OAuth scope with `comments`).',
       inputSchema: { videoId },
       annotations: READ_ONLY,
     },
@@ -41,7 +41,7 @@ export function registerCaptionTools(server: McpServer, yt: YouTubeFactory): voi
       description:
         'Uploads a new SRT or VTT caption track to one of your videos (YouTube Data API captions.insert). ' +
         'Costs 400 quota units. The file must be inside the media folder (YT_CORE_MCP_MEDIA_ROOT). ' +
-        'Needs the `captions` permission group.',
+        'Needs the `captions` permission group (shares its OAuth scope with `comments`).',
       inputSchema: {
         videoId,
         file: z.string().min(1).max(1000).describe('Path to the .srt/.vtt file, absolute or relative to the media folder.'),

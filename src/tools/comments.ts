@@ -13,6 +13,7 @@ export function registerCommentTools(server: McpServer, yt: YouTubeFactory): voi
       title: 'List comments',
       description:
         'Lists top-level comment threads of a video (YouTube Data API commentThreads.list). Costs 1 quota unit. ' +
+        'Needs the `comments` permission group (shares its OAuth scope with `captions`). ' +
         'Use topLevelCommentId as parentId for comment_reply.',
       inputSchema: {
         videoId,
@@ -57,6 +58,7 @@ export function registerCommentTools(server: McpServer, yt: YouTubeFactory): voi
       title: 'Reply to comment',
       description:
         'Posts a public reply to a comment (YouTube Data API comments.insert). Costs 50 quota units. ' +
+        'Needs the `comments` permission group (shares its OAuth scope with `captions`). ' +
         'The user must confirm the reply in the client; refused if the client cannot ask for confirmation.',
       inputSchema: {
         parentId: z.string().min(1).max(200).describe('Id of the top-level comment to reply to (topLevelCommentId).'),

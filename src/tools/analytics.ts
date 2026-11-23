@@ -25,6 +25,11 @@ const dateRange = {
   endDate: date.describe('End date, YYYY-MM-DD (inclusive).'),
 };
 
+/** Shared caveats appended to every analytics tool description. */
+const NOTE =
+  ' Needs the `analytics` permission group. Uses YouTube Analytics API quota, not YouTube Data API units. ' +
+  'Dates are YYYY-MM-DD; days follow US Pacific time. Data lags 2-3 days, so the latest days may be missing or incomplete.';
+
 const SUMMARY_METRICS =
   'views,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,subscribersGained,subscribersLost,likes,comments,shares';
 
@@ -52,7 +57,8 @@ export function registerAnalyticsTools(server: McpServer, analytics: AnalyticsFa
     'analytics_overview',
     {
       title: 'Channel analytics overview',
-      description: 'Totals for your channel in a date range: views, watch time, subscribers, likes, comments, shares.',
+      description:
+        'Totals for your channel in a date range: views, watch time, subscribers, likes, comments, shares.' + NOTE,
       inputSchema: dateRange,
       annotations: READ_ONLY,
     },
@@ -63,7 +69,10 @@ export function registerAnalyticsTools(server: McpServer, analytics: AnalyticsFa
     'analytics_top_videos',
     {
       title: 'Top videos',
-      description: 'Your most viewed videos in a date range, with watch time, likes and subscribers gained.',
+      description:
+        'Your most viewed videos in a date range, with watch time, likes and subscribers gained. ' +
+        'Returns video ids only, no titles (use video_get for titles).' +
+        NOTE,
       inputSchema: {
         ...dateRange,
         maxResults: z.number().int().min(1).max(200).default(10).describe('Number of videos (1-200).'),
@@ -85,7 +94,8 @@ export function registerAnalyticsTools(server: McpServer, analytics: AnalyticsFa
     'analytics_video',
     {
       title: 'Video analytics',
-      description: 'Totals for one of your videos in a date range: views, watch time, subscribers, likes, comments, shares.',
+      description:
+        'Totals for one of your videos in a date range: views, watch time, subscribers, likes, comments, shares.' + NOTE,
       inputSchema: { ...dateRange, videoId },
       annotations: READ_ONLY,
     },
@@ -96,7 +106,8 @@ export function registerAnalyticsTools(server: McpServer, analytics: AnalyticsFa
     'analytics_traffic_sources',
     {
       title: 'Traffic sources',
-      description: 'Where your channel views came from (search, suggested, external, ...) in a date range.',
+      description:
+        'Where your channel views came from (search, suggested, external, ...) in a date range.' + NOTE,
       inputSchema: dateRange,
       annotations: READ_ONLY,
     },
@@ -110,7 +121,8 @@ export function registerAnalyticsTools(server: McpServer, analytics: AnalyticsFa
     'analytics_demographics',
     {
       title: 'Viewer demographics',
-      description: 'Share of your channel viewers by age group and gender in a date range (viewerPercentage).',
+      description:
+        'Share of your channel viewers by age group and gender in a date range (viewerPercentage).' + NOTE,
       inputSchema: dateRange,
       annotations: READ_ONLY,
     },
@@ -121,7 +133,8 @@ export function registerAnalyticsTools(server: McpServer, analytics: AnalyticsFa
     'analytics_geography',
     {
       title: 'Viewer geography',
-      description: 'Your channel views and watch time by country in a date range.',
+      description:
+        'Your channel views and watch time by country in a date range.' + NOTE,
       inputSchema: dateRange,
       annotations: READ_ONLY,
     },
@@ -139,7 +152,8 @@ export function registerAnalyticsTools(server: McpServer, analytics: AnalyticsFa
     'analytics_daily',
     {
       title: 'Daily analytics',
-      description: 'Your channel views, watch time and subscriber changes per day in a date range.',
+      description:
+        'Your channel views, watch time and subscriber changes per day in a date range.' + NOTE,
       inputSchema: dateRange,
       annotations: READ_ONLY,
     },
@@ -158,7 +172,7 @@ export function registerAnalyticsTools(server: McpServer, analytics: AnalyticsFa
     {
       title: 'Audience retention',
       description:
-        'Audience retention curve for one of your videos: share of viewers still watching at each point (0-1) of the video.',
+        'Audience retention curve for one of your videos: share of viewers still watching at each point (0-1) of the video.' + NOTE,
       inputSchema: { ...dateRange, videoId },
       annotations: READ_ONLY,
     },

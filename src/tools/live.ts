@@ -36,7 +36,10 @@ const details = {
   madeForKids: z.boolean().optional().describe('Self-declared made for kids.'),
   enableDvr: z.boolean().optional().describe('Viewers can rewind (YouTube default: true).'),
   enableEmbed: z.boolean().optional().describe('Can be embedded on other sites (YouTube default: true).'),
-  latencyPreference: z.enum(['normal', 'low', 'ultraLow']).optional().describe('YouTube default: normal.'),
+  latencyPreference: z
+    .enum(['normal', 'low', 'ultraLow'])
+    .optional()
+    .describe('YouTube default: normal. YouTube may refuse ultraLow together with DVR or captions.'),
   enableAutoStart: z
     .boolean()
     .optional()
@@ -237,7 +240,8 @@ export function registerLiveTools(server: McpServer, yt: YouTubeFactory): void {
         'Plans (never starts) a live broadcast: liveBroadcasts.insert → bind to an existing stream → thumbnail → ' +
         'category/tags/language (videos.update) → add to playlist. Default privacy is private. Options not given are ' +
         'not sent, so YouTube defaults apply. If a later step fails, the broadcast is kept and the result lists ' +
-        'what failed. Costs ~50 quota units plus ~50 per optional step.',
+        'what failed. Costs 50 quota units, plus 50 each for bind, thumbnail and playlist, and 51 for ' +
+        'category/tags/language. Needs the `core` permission group.',
       inputSchema: {
         title,
         startTime,
@@ -296,7 +300,8 @@ export function registerLiveTools(server: McpServer, yt: YouTubeFactory): void {
       title: 'Update live broadcast',
       description:
         'Changes a planned broadcast. Only the given fields change; the rest is kept (fetch → merge → update). ' +
-        'Privacy is changed with live_publish_broadcast. Costs ~51 quota units plus ~50 per extra step.',
+        'Privacy is changed with live_publish_broadcast. Costs 51 quota units for broadcast fields, 50 for the ' +
+        'thumbnail and 51 for category/tags/language (only the parts that change). Needs the `core` permission group.',
       inputSchema: {
         broadcastId,
         title: title.optional(),
@@ -341,7 +346,8 @@ export function registerLiveTools(server: McpServer, yt: YouTubeFactory): void {
       description:
         'Changes the privacy of a planned broadcast to public or unlisted (does not start it). Asks the user to ' +
         'confirm first. Unverified API projects may be refused by YouTube; then publish in YouTube Studio. ' +
-        'Costs ~51 quota units.',
+        'Costs ~51 quota units. ' +
+        'Needs the `core` permission group.',
       inputSchema: { broadcastId, privacyStatus: z.enum(['public', 'unlisted']) },
       annotations: OVERWRITE,
     },
@@ -374,7 +380,10 @@ export function registerLiveTools(server: McpServer, yt: YouTubeFactory): void {
     'live_list_broadcasts',
     {
       title: 'List live broadcasts',
-      description: 'Lists your live broadcasts by status (liveBroadcasts.list). Costs 1 quota unit.',
+      description:
+        'Lists your live broadcasts by status (liveBroadcasts.list). Results are paged (use nextPageToken); ' +
+        'YouTube does not guarantee their order. Costs 1 quota unit. ' +
+        'Needs the `core` permission group.',
       inputSchema: {
         status: z.enum(['upcoming', 'active', 'completed', 'all']).default('upcoming'),
         maxResults,
@@ -398,7 +407,9 @@ export function registerLiveTools(server: McpServer, yt: YouTubeFactory): void {
     'live_get_broadcast',
     {
       title: 'Get live broadcast',
-      description: 'Gets details and settings of one of your live broadcasts (liveBroadcasts.list). Costs 1 quota unit.',
+      description:
+        'Gets details and settings of one of your live broadcasts (liveBroadcasts.list). Costs 1 quota unit. ' +
+        'Needs the `core` permission group.',
       inputSchema: { broadcastId },
       annotations: READ_ONLY,
     },
@@ -428,7 +439,8 @@ export function registerLiveTools(server: McpServer, yt: YouTubeFactory): void {
       title: 'List live streams',
       description:
         'Lists your reusable live streams (ingest settings) to bind to a broadcast (liveStreams.list). ' +
-        'Stream keys are masked. Costs 1 quota unit.',
+        'Stream keys are masked. Costs 1 quota unit. ' +
+        'Needs the `core` permission group.',
       inputSchema: { maxResults, pageToken },
       annotations: READ_ONLY,
     },

@@ -36,7 +36,8 @@ export function registerUploadAndPlaylistTools(server: McpServer, yt: YouTubeFac
       description:
         'Uploads a local video file to your channel (resumable upload, videos.insert). The file must be inside the ' +
         'media folder (YT_CORE_MCP_MEDIA_ROOT). Default privacy is private. Note: uploads from unverified API ' +
-        'projects are locked to private until the project passes a YouTube audit. Costs about 100 quota units.',
+        'projects are locked to private until the project passes a YouTube audit. Costs about 100 quota units. ' +
+        'Needs the `core` permission group.',
       inputSchema: {
         file: z.string().min(1).max(1000).describe('Path to the video, absolute or relative to the media folder.'),
         title,
@@ -98,7 +99,9 @@ export function registerUploadAndPlaylistTools(server: McpServer, yt: YouTubeFac
     'playlist_list',
     {
       title: 'List my playlists',
-      description: 'Lists playlists of your channel (playlists.list mine=true). Costs 1 quota unit.',
+      description:
+        'Lists playlists of your channel (playlists.list mine=true). Costs 1 quota unit. ' +
+        'Needs the `core` permission group.',
       inputSchema: {
         maxResults: z.number().int().min(1).max(50).default(25).describe('Results per page (1-50).'),
         pageToken,
@@ -131,7 +134,9 @@ export function registerUploadAndPlaylistTools(server: McpServer, yt: YouTubeFac
     'playlist_create',
     {
       title: 'Create playlist',
-      description: 'Creates a playlist on your channel (playlists.insert). Default privacy is private. Costs 50 quota units.',
+      description:
+        'Creates a playlist on your channel (playlists.insert). Default privacy is private. Costs 50 quota units. ' +
+        'Needs the `core` permission group.',
       inputSchema: {
         title: z.string().min(1).max(150),
         description: z.string().max(5000).optional(),
@@ -162,7 +167,8 @@ export function registerUploadAndPlaylistTools(server: McpServer, yt: YouTubeFac
       title: 'Add video to playlist',
       description:
         'Adds a video to one of your playlists (playlistItems.insert). Adding the same video twice creates a duplicate. ' +
-        'Costs 50 quota units.',
+        'Costs 50 quota units. ' +
+        'Needs the `core` permission group.',
       inputSchema: {
         playlistId: resourceId,
         videoId,

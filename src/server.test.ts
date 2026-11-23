@@ -83,6 +83,58 @@ describe('server', () => {
   });
 });
 
+describe('tool descriptions', () => {
+  async function descriptions(): Promise<Map<string, string>> {
+    const { tools } = await (await connect()).listTools();
+    return new Map(tools.map((t) => [t.name, t.description ?? '']));
+  }
+
+  it('name the permission group and quota cost of every tool', async () => {
+    for (const [name, text] of await descriptions()) {
+      if (name === 'auth_status') continue;
+      expect(text, name).toMatch(/Needs the `(core|captions|comments|analytics)` permission group/);
+      expect(text, name).toMatch(/quota/i);
+    }
+  });
+
+  it('say that captions and comments share one OAuth scope', async () => {
+    const d = await descriptions();
+    for (const name of ['comment_list', 'comment_reply']) {
+      expect(d.get(name)).toContain('Needs the `comments` permission group (shares its OAuth scope with `captions`)');
+    }
+    for (const name of ['caption_list', 'caption_upload']) {
+      expect(d.get(name)).toContain('Needs the `captions` permission group (shares its OAuth scope with `comments`)');
+    }
+  });
+
+  it('explain analytics dates, time zone and data lag', async () => {
+    for (const [name, text] of await descriptions()) {
+      if (!name.startsWith('analytics_')) continue;
+      expect(text, name).toMatch(/YYYY-MM-DD/);
+      expect(text, name).toMatch(/US Pacific time/);
+      expect(text, name).toMatch(/lags 2-3 days/);
+    }
+    expect((await descriptions()).get('analytics_top_videos')).toMatch(/video ids only.*video_get/);
+  });
+
+  it('warn about public videos, paged broadcasts and exact live quota', async () => {
+    const d = await descriptions();
+    expect(d.get('video_update')).toMatch(/privacyStatus public makes the video visible to everyone/);
+    expect(d.get('live_list_broadcasts')).toMatch(/paged.*does not guarantee their order/);
+    expect(d.get('live_schedule_broadcast')).toMatch(/51 for category\/tags\/language/);
+    expect(d.get('live_update_broadcast')).toMatch(/51 for category\/tags\/language/);
+    expect([...d.values()].join(' ')).not.toMatch(/~50 per/);
+  });
+
+  it('warn that ultraLow latency may be refused with DVR or captions', async () => {
+    const { tools } = await (await connect()).listTools();
+    for (const name of ['live_schedule_broadcast', 'live_update_broadcast']) {
+      const schema = tools.find((t) => t.name === name)?.inputSchema.properties?.latencyPreference as { description?: string };
+      expect(schema.description, name).toMatch(/refuse ultraLow together with DVR or captions/);
+    }
+  });
+});
+
 describe('auth_status', () => {
   beforeEach(() => {
     vi.mocked(checkRefreshToken).mockReset();
