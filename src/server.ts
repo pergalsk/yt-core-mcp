@@ -2,8 +2,10 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { grantedGroups, ALL_GROUPS } from './auth/scopes.js';
 import { TokenStore } from './auth/token-store.js';
+import { registerSearchTools } from './tools/search.js';
+import { youtubeFactory, type YouTubeFactory } from './tools/youtube.js';
 
-export function createServer(store = new TokenStore()): McpServer {
+export function createServer(store = new TokenStore(), yt: YouTubeFactory = youtubeFactory(store)): McpServer {
   const server = new McpServer({ name: 'yt-core-mcp', version: '0.1.0' });
 
   server.registerTool(
@@ -31,6 +33,8 @@ export function createServer(store = new TokenStore()): McpServer {
       return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
     },
   );
+
+  registerSearchTools(server, yt);
 
   return server;
 }
