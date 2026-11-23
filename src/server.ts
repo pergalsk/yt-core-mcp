@@ -5,6 +5,7 @@ import { TokenStore } from './auth/token-store.js';
 import { analyticsFactory, registerAnalyticsTools } from './tools/analytics.js';
 import { registerCaptionTools } from './tools/captions.js';
 import { registerCommentTools } from './tools/comments.js';
+import { registerLiveTools } from './tools/live.js';
 import { registerSearchTools } from './tools/search.js';
 import { registerUploadAndPlaylistTools } from './tools/upload-playlists.js';
 import { registerVideoTools } from './tools/videos.js';
@@ -45,6 +46,7 @@ export function createServer(store = new TokenStore(), yt: YouTubeFactory = yout
   registerVideoTools(server, yt);
   registerCommentTools(server, yt);
   registerAnalyticsTools(server, analyticsFactory(store));
+  registerLiveTools(server, yt);
 
   return server;
 }
