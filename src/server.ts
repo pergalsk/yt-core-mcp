@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { checkRefreshToken } from './auth/client.js';
 import { grantedGroups, ALL_GROUPS } from './auth/scopes.js';
 import { TokenStore } from './auth/token-store.js';
 import { analyticsFactory, registerAnalyticsTools } from './tools/analytics.js';
@@ -20,11 +21,12 @@ export function createServer(store = new TokenStore(), yt: YouTubeFactory = yout
     {
       title: 'Auth status',
       description:
-        'Shows whether yt-core-mcp is logged in to YouTube and which permission groups are granted. ' +
+        'Shows whether yt-core-mcp is logged in to YouTube, whether the stored token still works, ' +
+        'and which permission groups are granted. ' +
         'Login itself can only be done by the user in a terminal (`yt-core-mcp auth`).',
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
-    () => {
+    async () => {
       let result: Record<string, unknown>;
       try {
         const stored = store.load();
@@ -34,6 +36,13 @@ export function createServer(store = new TokenStore(), yt: YouTubeFactory = yout
           grantedGroups: granted,
           notGranted: ALL_GROUPS.filter((g) => !granted.includes(g)),
         };
+        if (stored) {
+          const tokenError = await checkRefreshToken(stored.refreshToken);
+          result.tokenValid = tokenError === null;
+          if (tokenError !== null) {
+            result.tokenError = `${tokenError} — run \`yt-core-mcp auth\` in a terminal to log in again.`;
+          }
+        }
       } catch (err) {
         result = { loggedIn: false, error: err instanceof Error ? err.message : 'Unknown error' };
       }
