@@ -6,7 +6,7 @@ import { openGuardedFile } from '../files/file-guard.js';
 import { defined } from '../util/defined.js';
 import { OVERWRITE, READ_ONLY } from './annotations.js';
 import { runTool, untrustedResult } from './result.js';
-import { maxResults, pageToken, videoId } from './schemas.js';
+import { description, maxResults, pageToken, tags, title, videoId } from './schemas.js';
 import type { YouTubeFactory } from './youtube.js';
 
 /** Uploads a JPEG/PNG (≤2 MB, read via the file guard) as the video's custom thumbnail. */
@@ -115,9 +115,9 @@ export function registerVideoTools(server: McpServer, yt: YouTubeFactory): void 
         'the rest is kept (fetch → merge → videos.update). Costs ~51 quota units.',
       inputSchema: {
         videoId,
-        title: z.string().min(1).max(100).optional(),
-        description: z.string().max(5000).optional(),
-        tags: z.array(z.string().min(1).max(500)).max(500).optional().describe('Replaces all tags.'),
+        title: title.optional(),
+        description: description.optional(),
+        tags: tags.optional().describe('Replaces all tags. Max 500 characters in total.'),
         categoryId: z.string().regex(/^\d+$/).optional().describe('Numeric category id (see categories_list).'),
         privacyStatus: z.enum(['public', 'unlisted', 'private']).optional(),
       },

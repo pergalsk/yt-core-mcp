@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { openGuardedFile } from '../files/file-guard.js';
 import { READ_ONLY, WRITE } from './annotations.js';
 import { runTool, untrustedResult } from './result.js';
-import { videoId } from './schemas.js';
+import { languageCode, videoId } from './schemas.js';
 import type { YouTubeFactory } from './youtube.js';
 
 export function registerCaptionTools(server: McpServer, yt: YouTubeFactory): void {
@@ -45,10 +45,7 @@ export function registerCaptionTools(server: McpServer, yt: YouTubeFactory): voi
       inputSchema: {
         videoId,
         file: z.string().min(1).max(1000).describe('Path to the .srt/.vtt file, absolute or relative to the media folder.'),
-        language: z
-          .string()
-          .regex(/^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$/)
-          .describe('BCP-47 language code, e.g. "en" or "sk".'),
+        language: languageCode.describe('BCP-47 language code, e.g. "en" or "sk".'),
         name: z.string().max(150).default('').describe('Track name shown to viewers (max 150 characters).'),
         isDraft: z.boolean().default(false).describe('Upload as draft (not visible to viewers).'),
       },

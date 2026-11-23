@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { openGuardedFile } from '../files/file-guard.js';
 import { READ_ONLY, WRITE } from './annotations.js';
 import { runTool, untrustedResult } from './result.js';
-import { pageToken, resourceId, videoId } from './schemas.js';
+import { description, pageToken, resourceId, tags, title, videoId } from './schemas.js';
 import type { YouTubeFactory } from './youtube.js';
 
 const UPLOAD_URL = 'https://www.googleapis.com/upload/youtube/v3/videos';
@@ -39,9 +39,9 @@ export function registerUploadAndPlaylistTools(server: McpServer, yt: YouTubeFac
         'projects are locked to private until the project passes a YouTube audit. Costs about 100 quota units.',
       inputSchema: {
         file: z.string().min(1).max(1000).describe('Path to the video, absolute or relative to the media folder.'),
-        title: z.string().min(1).max(100),
-        description: z.string().max(5000).optional(),
-        tags: z.array(z.string().min(1).max(100)).max(50).optional(),
+        title,
+        description: description.optional(),
+        tags: tags.optional().describe('Max 500 characters in total.'),
         categoryId: z.string().regex(/^\d+$/).optional().describe('Numeric video category id.'),
         privacyStatus: privacyStatus.default('private'),
       },

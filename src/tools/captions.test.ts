@@ -174,4 +174,12 @@ describe('caption tools', () => {
     expect(result.isError).toBe(true);
     expect(yt.captionsList).not.toHaveBeenCalled();
   });
+
+  it('caption_upload rejects an invalid language without calling the API', async () => {
+    const yt = fakeYouTube();
+    const client = await connect(yt.factory);
+    const result = await client.callTool({ name: 'caption_upload', arguments: { videoId: 'dQw4w9WgXcQ', file: 'sub.vtt', language: 'en-U' } });
+    expect(result.isError).toBe(true);
+    expect(yt.captionsInsert).not.toHaveBeenCalled();
+  });
 });

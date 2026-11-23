@@ -168,6 +168,16 @@ describe('video tools', () => {
     expect(yt.api.videos.update).not.toHaveBeenCalled();
   });
 
+  it('video_update rejects invalid text without calling the API', async () => {
+    const yt = fakeYouTube();
+    const client = await connect(yt.factory);
+    for (const patch of [{ title: 'a <b>' }, { description: 'ž'.repeat(2501) }, { tags: ['a'.repeat(501)] }]) {
+      const result = await client.callTool({ name: 'video_update', arguments: { videoId: VID, ...patch } });
+      expect(result.isError).toBe(true);
+    }
+    expect(yt.api.videos.list).not.toHaveBeenCalled();
+  });
+
   it('video_set_thumbnail uploads the guarded file', async () => {
     const yt = fakeYouTube();
     const client = await connect(yt.factory);
