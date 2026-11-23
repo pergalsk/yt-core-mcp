@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { DELETE } from './annotations.js';
 import { confirmAction } from './confirm.js';
-import { runTool } from './result.js';
+import { jsonResult, runTool } from './result.js';
 import { resourceId, videoId } from './schemas.js';
 import type { YouTubeFactory } from './youtube.js';
 
@@ -16,7 +16,7 @@ async function confirmAndDelete(
   if (title === undefined) throw new Error(`${what} not found (or not yours). Nothing was deleted.`);
   await confirmAction(server, `Permanently delete ${what}: "${title ?? '(no title)'}"? This cannot be undone.`);
   await del();
-  return { content: [{ type: 'text', text: JSON.stringify({ deleted: true, what }, null, 2) }] };
+  return jsonResult({ deleted: true, what });
 }
 
 export function registerDeleteTools(server: McpServer, yt: YouTubeFactory): void {
