@@ -62,7 +62,13 @@ function fakeYouTube() {
       list: vi.fn().mockResolvedValue({
         data: {
           nextPageToken: 'N',
-          items: [{ snippet: { title: 'T', publishedAt: 'p', resourceId: { videoId: VID } }, status: { privacyStatus: 'unlisted' } }],
+          items: [
+            {
+              snippet: { title: 'T', publishedAt: 'added', resourceId: { videoId: VID } },
+              status: { privacyStatus: 'unlisted' },
+              contentDetails: { videoPublishedAt: 'published' },
+            },
+          ],
         },
       }),
     },
@@ -197,10 +203,10 @@ describe('video tools', () => {
     const yt = fakeYouTube();
     const result = await (await connect(yt.factory)).callTool({ name: 'video_list', arguments: { maxResults: 5 } });
     expect(yt.api.channels.list).toHaveBeenCalledWith({ part: ['contentDetails'], mine: true });
-    expect(yt.api.playlistItems.list).toHaveBeenCalledWith({ part: ['snippet', 'status'], playlistId: 'UU1', maxResults: 5 });
+    expect(yt.api.playlistItems.list).toHaveBeenCalledWith({ part: ['snippet', 'status', 'contentDetails'], playlistId: 'UU1', maxResults: 5 });
     expect(parseText(result)).toEqual({
       notice: UNTRUSTED_NOTICE,
-      untrustedData: { nextPageToken: 'N', items: [{ id: VID, title: 'T', publishedAt: 'p', privacyStatus: 'unlisted' }] },
+      untrustedData: { nextPageToken: 'N', items: [{ id: VID, title: 'T', publishedAt: 'published', privacyStatus: 'unlisted' }] },
     });
   });
 
