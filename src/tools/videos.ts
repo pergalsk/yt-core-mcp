@@ -92,7 +92,8 @@ export function registerVideoTools(server: McpServer, yt: YouTubeFactory): void 
       title: 'Set video thumbnail',
       description:
         'Replaces the custom thumbnail of your video (YouTube Data API thumbnails.set). ' +
-        'The file must be JPEG or PNG, max 2 MB, inside the media folder (YT_CORE_MCP_MEDIA_ROOT). Costs 50 quota units.',
+        'The file must be JPEG or PNG, max 2 MB, inside the media folder (YT_CORE_MCP_MEDIA_ROOT). Costs 50 quota units. ' +
+        'Needs the `core` permission group.',
       inputSchema: {
         videoId,
         path: z.string().min(1).max(1000).describe('Image path, absolute or relative to the media folder.'),
@@ -112,7 +113,9 @@ export function registerVideoTools(server: McpServer, yt: YouTubeFactory): void 
       title: 'Update video',
       description:
         'Changes title, description, tags, category or privacy of your video. Only the given fields change; ' +
-        'the rest is kept (fetch → merge → videos.update). Costs ~51 quota units.',
+        'the rest is kept (fetch → merge → videos.update). WARNING: privacyStatus public makes the video visible to ' +
+        'everyone. Costs ~51 quota units. ' +
+        'Needs the `core` permission group.',
       inputSchema: {
         videoId,
         title: title.optional(),
@@ -134,7 +137,9 @@ export function registerVideoTools(server: McpServer, yt: YouTubeFactory): void 
     'video_get',
     {
       title: 'Get videos',
-      description: 'Gets details and statistics of up to 50 videos by id (YouTube Data API videos.list). Costs 1 quota unit.',
+      description:
+        'Gets details and statistics of up to 50 videos by id (YouTube Data API videos.list). Costs 1 quota unit. ' +
+        'Needs the `core` permission group.',
       inputSchema: { ids: z.array(videoId).min(1).max(50) },
       annotations: READ_ONLY,
     },
@@ -170,7 +175,8 @@ export function registerVideoTools(server: McpServer, yt: YouTubeFactory): void 
     {
       title: 'List my videos',
       description:
-        'Lists videos uploaded to your channel, newest first, including private ones (uploads playlist). Costs 2 quota units.',
+        'Lists videos uploaded to your channel, newest first, including private ones (uploads playlist). Costs 2 quota units. ' +
+        'Needs the `core` permission group.',
       inputSchema: { maxResults, pageToken },
       annotations: READ_ONLY,
     },
@@ -202,7 +208,9 @@ export function registerVideoTools(server: McpServer, yt: YouTubeFactory): void 
     'channel_get',
     {
       title: 'Get channel',
-      description: 'Gets details and statistics of your channel, or of a channel by id (channels.list). Costs 1 quota unit.',
+      description:
+        'Gets details and statistics of your channel, or of a channel by id (channels.list). Costs 1 quota unit. ' +
+        'Needs the `core` permission group.',
       inputSchema: {
         channelId: z.string().regex(/^UC[\w-]{22}$/).optional().describe('Channel id; omit for your own channel.'),
       },
@@ -235,7 +243,9 @@ export function registerVideoTools(server: McpServer, yt: YouTubeFactory): void 
     'categories_list',
     {
       title: 'List video categories',
-      description: 'Lists video categories for a region (videoCategories.list). Costs 1 quota unit.',
+      description:
+        'Lists video categories for a region (videoCategories.list). Costs 1 quota unit. ' +
+        'Needs the `core` permission group.',
       inputSchema: {
         regionCode: z.string().regex(/^[A-Za-z]{2}$/).default(loadConfig().region).describe('ISO 3166-1 alpha-2 country code.'),
       },

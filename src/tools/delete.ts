@@ -26,7 +26,8 @@ export function registerDeleteTools(server: McpServer, yt: YouTubeFactory): void
       title: 'Delete video',
       description:
         'Permanently deletes one of your videos (videos.delete). Costs 52 quota units. ' +
-        'The user must confirm in the client; refused if the client cannot ask for confirmation.',
+        'The user must confirm in the client; refused if the client cannot ask for confirmation. ' +
+        'Needs the `core` permission group.',
       inputSchema: { videoId },
       annotations: DELETE,
     },
@@ -54,7 +55,8 @@ export function registerDeleteTools(server: McpServer, yt: YouTubeFactory): void
       description:
         'Permanently deletes one of your live broadcasts (liveBroadcasts.delete), including its video/VOD. ' +
         'Costs 51 quota units. ' +
-        'The user must confirm in the client; refused if the client cannot ask for confirmation.',
+        'The user must confirm in the client; refused if the client cannot ask for confirmation. ' +
+        'Needs the `core` permission group.',
       inputSchema: { broadcastId: resourceId },
       annotations: DELETE,
     },
@@ -76,7 +78,8 @@ export function registerDeleteTools(server: McpServer, yt: YouTubeFactory): void
       description:
         'Removes an item from one of your playlists (playlistItems.delete). Costs 51 quota units. ' +
         'Takes the playlist item id (e.g. from playlist_add_item), not the video id. ' +
-        'The user must confirm in the client; refused if the client cannot ask for confirmation.',
+        'The user must confirm in the client; refused if the client cannot ask for confirmation. ' +
+        'Needs the `core` permission group.',
       inputSchema: { playlistItemId: resourceId },
       annotations: DELETE,
     },
