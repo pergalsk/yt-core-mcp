@@ -15,9 +15,14 @@ concurrency:
 
 jobs:
   check:
-    name: Node 26
-    runs-on: windows-latest
+    name: ${{ matrix.os }} / Node 26
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
+    strategy:
+      # Keyring and open-browser have per-OS branches; report every OS.
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
     steps:
       # Actions pinned to full commit SHA (GitHub security hardening guide).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
