@@ -43,6 +43,7 @@ export interface VideoPatch {
   description?: string | undefined;
   tags?: string[] | undefined;
   categoryId?: string | undefined;
+  defaultLanguage?: string | undefined;
   privacyStatus?: 'public' | 'unlisted' | 'private' | undefined;
 }
 
@@ -72,7 +73,7 @@ export async function updateVideo(
       description: snippetPatch.description ?? s.description,
       tags: snippetPatch.tags ?? s.tags,
       categoryId: snippetPatch.categoryId ?? s.categoryId,
-      defaultLanguage: s.defaultLanguage,
+      defaultLanguage: snippetPatch.defaultLanguage ?? s.defaultLanguage,
       defaultAudioLanguage: s.defaultAudioLanguage,
     });
     part.push('snippet');
