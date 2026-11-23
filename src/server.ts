@@ -3,6 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { grantedGroups, ALL_GROUPS } from './auth/scopes.js';
 import { TokenStore } from './auth/token-store.js';
 import { registerSearchTools } from './tools/search.js';
+import { registerUploadAndPlaylistTools } from './tools/upload-playlists.js';
 import { youtubeFactory, type YouTubeFactory } from './tools/youtube.js';
 
 export function createServer(store = new TokenStore(), yt: YouTubeFactory = youtubeFactory(store)): McpServer {
@@ -35,6 +36,7 @@ export function createServer(store = new TokenStore(), yt: YouTubeFactory = yout
   );
 
   registerSearchTools(server, yt);
+  registerUploadAndPlaylistTools(server, yt);
 
   return server;
 }
