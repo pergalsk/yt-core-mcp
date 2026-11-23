@@ -6,12 +6,12 @@ import type { AddressInfo } from 'node:net';
  * One-shot loopback receiver for the OAuth redirect (RFC 8252 / Google "loopback IP address" flow).
  * - binds to 127.0.0.1 only (never all interfaces), on a random free port
  * - accepts a single GET carrying either `code`+`state` or `error`
- * - verifies `state` in constant time (CSRF protection)
+ * - verifies `state` in constant time (CSRF protection); mismatches are rejected and ignored
  * - never reflects request data into the HTML response
  */
 export interface LoopbackReceiver {
   redirectUri: string;
-  /** Resolves with the authorization code; rejects on error, state mismatch or timeout. */
+  /** Resolves with the authorization code; rejects on OAuth error, timeout or close(). */
   code: Promise<string>;
   close(): void;
 }
@@ -25,7 +25,7 @@ function safeEqual(a: string, b: string): boolean {
   return ab.length === bb.length && timingSafeEqual(ab, bb);
 }
 
-export async function startLoopbackReceiver(expectedState: string, timeoutMs = 120_000): Promise<LoopbackReceiver> {
+export async function startLoopbackReceiver(expectedState: string, timeoutMs = 300_000): Promise<LoopbackReceiver> {
   let settle: { resolve: (code: string) => void; reject: (err: Error) => void } | undefined;
   const code = new Promise<string>((resolve, reject) => {
     settle = { resolve, reject };
@@ -58,8 +58,8 @@ export async function startLoopbackReceiver(expectedState: string, timeoutMs = 1
     }
     const state = params.get('state') ?? '';
     if (!safeEqual(state, expectedState)) {
+      // Possible CSRF or a stray request — reject it but keep waiting for the real redirect.
       res.writeHead(400, headers).end(PAGE_FAIL);
-      finish(new Error('OAuth state mismatch — possible CSRF, login aborted.'));
       return;
     }
     const error = params.get('error');

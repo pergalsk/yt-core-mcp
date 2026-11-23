@@ -3,22 +3,18 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { loadConfig } from '../config.js';
 import { openGuardedFile } from '../files/file-guard.js';
+import { defined } from '../util/defined.js';
+import { OVERWRITE, READ_ONLY, WRITE } from './annotations.js';
 import { confirmAction } from './confirm.js';
 import { runTool, untrustedResult } from './result.js';
+import { maxResults, pageToken, resourceId, videoId } from './schemas.js';
 import { addPlaylistItem } from './upload-playlists.js';
 import { setThumbnail, updateVideo, type VideoPatch } from './videos.js';
 import type { YouTubeFactory } from './youtube.js';
 
-const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true };
-const WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true };
-// Overwrites existing data on YouTube; repeating the same call gives the same result.
-const OVERWRITE = { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true };
-
 const START_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?(Z|[+-]\d{2}:\d{2})?$/;
 
-const broadcastId = z.string().regex(/^[\w-]{11}$/).describe('Broadcast id (same as its video id, 11 characters).');
-const maxResults = z.number().int().min(1).max(50).default(10).describe('Results per page (1-50).');
-const pageToken = z.string().max(200).optional().describe('nextPageToken from a previous call.');
+const broadcastId = videoId.describe('Broadcast id (same as its video id, 11 characters).');
 
 const startTime = z
   .string()
@@ -85,13 +81,6 @@ function maskKey(key: string | null | undefined): string | undefined {
 
 function studioUrl(id: string): string {
   return `https://studio.youtube.com/video/${id}/livestreaming`;
-}
-
-/** Drops undefined values (needed for exactOptionalPropertyTypes). */
-function defined<T extends Record<string, unknown>>(obj: T): { [K in keyof T]?: Exclude<T[K], undefined> } {
-  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as {
-    [K in keyof T]?: Exclude<T[K], undefined>;
-  };
 }
 
 type Step = 'ok' | 'skipped' | { error: string };
@@ -237,12 +226,10 @@ export function registerLiveTools(server: McpServer, yt: YouTubeFactory): void {
         startTime,
         timezone,
         privacyStatus: z.enum(['private', 'unlisted', 'public']).default('private'),
-        streamId: z
-          .string()
-          .regex(/^[\w-]{1,64}$/)
+        streamId: resourceId
           .optional()
           .describe('Existing reusable stream to bind (see live_list_streams). Omit to bind later.'),
-        playlistId: z.string().regex(/^[\w-]{1,64}$/).optional().describe('Playlist to add the broadcast to.'),
+        playlistId: resourceId.optional().describe('Playlist to add the broadcast to.'),
         ...details,
       },
       annotations: WRITE,

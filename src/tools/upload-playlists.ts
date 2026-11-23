@@ -3,15 +3,14 @@ import type { youtube_v3 } from '@googleapis/youtube';
 import type { OAuth2Client } from 'google-auth-library';
 import { z } from 'zod';
 import { openGuardedFile } from '../files/file-guard.js';
+import { READ_ONLY, WRITE } from './annotations.js';
 import { runTool, untrustedResult } from './result.js';
+import { pageToken, resourceId, videoId } from './schemas.js';
 import type { YouTubeFactory } from './youtube.js';
 
 const UPLOAD_URL = 'https://www.googleapis.com/upload/youtube/v3/videos';
 
-const WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true };
-
 const privacyStatus = z.enum(['private', 'unlisted', 'public']);
-const id = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/);
 
 /** Adds a video to a playlist (playlistItems.insert). Exported for reuse by other tools. */
 export async function addPlaylistItem(
@@ -102,9 +101,9 @@ export function registerUploadAndPlaylistTools(server: McpServer, yt: YouTubeFac
       description: 'Lists playlists of your channel (playlists.list mine=true). Costs 1 quota unit.',
       inputSchema: {
         maxResults: z.number().int().min(1).max(50).default(25).describe('Results per page (1-50).'),
-        pageToken: z.string().max(200).optional().describe('nextPageToken from a previous call.'),
+        pageToken,
       },
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+      annotations: READ_ONLY,
     },
     (args) =>
       runTool(async () => {
@@ -165,8 +164,8 @@ export function registerUploadAndPlaylistTools(server: McpServer, yt: YouTubeFac
         'Adds a video to one of your playlists (playlistItems.insert). Adding the same video twice creates a duplicate. ' +
         'Costs 50 quota units.',
       inputSchema: {
-        playlistId: id,
-        videoId: id,
+        playlistId: resourceId,
+        videoId,
         position: z.number().int().min(0).optional().describe('Zero-based position; default is the end.'),
       },
       annotations: WRITE,

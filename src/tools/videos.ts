@@ -3,16 +3,11 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { loadConfig } from '../config.js';
 import { openGuardedFile } from '../files/file-guard.js';
+import { defined } from '../util/defined.js';
+import { OVERWRITE, READ_ONLY } from './annotations.js';
 import { runTool, untrustedResult } from './result.js';
+import { maxResults, pageToken, videoId } from './schemas.js';
 import type { YouTubeFactory } from './youtube.js';
-
-const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true };
-// Overwrites existing data on YouTube; repeating the same call gives the same result.
-const OVERWRITE = { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true };
-
-const videoId = z.string().regex(/^[\w-]{11}$/).describe('YouTube video id (11 characters).');
-const maxResults = z.number().int().min(1).max(50).default(10).describe('Results per page (1-50).');
-const pageToken = z.string().max(200).optional().describe('nextPageToken from a previous call.');
 
 /** Uploads a JPEG/PNG (≤2 MB, read via the file guard) as the video's custom thumbnail. */
 export async function setThumbnail(
@@ -30,13 +25,6 @@ export async function setThumbnail(
   } finally {
     await file.handle.close();
   }
-}
-
-/** Drops undefined values (needed for exactOptionalPropertyTypes). */
-function defined<T extends Record<string, unknown>>(obj: T): { [K in keyof T]?: Exclude<T[K], undefined> } {
-  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as {
-    [K in keyof T]?: Exclude<T[K], undefined>;
-  };
 }
 
 export interface VideoPatch {
@@ -193,7 +181,7 @@ export function registerVideoTools(server: McpServer, yt: YouTubeFactory): void 
         const uploads = channel?.contentDetails?.relatedPlaylists?.uploads;
         if (!uploads) throw new Error('No YouTube channel found for this account.');
         const res = await api.playlistItems.list({
-          part: ['snippet', 'status'],
+          part: ['snippet', 'status', 'contentDetails'],
           playlistId: uploads,
           maxResults: args.maxResults,
           ...(args.pageToken ? { pageToken: args.pageToken } : {}),
@@ -203,7 +191,7 @@ export function registerVideoTools(server: McpServer, yt: YouTubeFactory): void 
           items: (res.data.items ?? []).map((i) => ({
             id: i.snippet?.resourceId?.videoId,
             title: i.snippet?.title,
-            publishedAt: i.snippet?.publishedAt,
+            publishedAt: i.contentDetails?.videoPublishedAt,
             privacyStatus: i.status?.privacyStatus,
           })),
         });
