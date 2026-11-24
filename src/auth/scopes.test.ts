@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { grantedGroups, resolveGroup, scopesFor } from './scopes.js';
+import { ALL_GROUPS, grantedGroups, resolveGroup, scopesFor } from './scopes.js';
 
 describe('scopes', () => {
   it('core requests only the youtube scope', () => {
@@ -23,5 +23,7 @@ describe('scopes', () => {
     expect(resolveGroup('comments')).toBe('engagement');
     expect(resolveGroup('toString')).toBeNull();
     expect(resolveGroup('nope')).toBeNull();
+    expect(resolveGroup('all')).toBeNull();
+    expect(ALL_GROUPS).not.toContain('all');
   });
 });

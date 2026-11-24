@@ -82,6 +82,17 @@ describe('runAuthCli', () => {
     expect(logged()).toMatch(/Granted groups: core, engagement/);
   });
 
+  it('--add all requests every group once', async () => {
+    mocks.login.mockResolvedValue({ groups: ['core', 'engagement', 'analytics'], missing: [] });
+    expect(await runAuthCli(['--add', 'analytics', '--add', 'all'])).toBe(0);
+    expect(mocks.login).toHaveBeenCalledWith(['core', 'analytics', 'engagement']);
+  });
+
+  it('--help mentions the all shortcut', async () => {
+    await runAuthCli(['--help']);
+    expect(logged()).toMatch(/--add all\s+Add every permission group/);
+  });
+
   it('rejects an unknown group without logging in', async () => {
     expect(await runAuthCli(['--add', 'nope'])).toBe(1);
     expect(mocks.login).not.toHaveBeenCalled();

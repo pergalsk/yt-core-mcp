@@ -15,7 +15,7 @@ MCP server for YouTube: live stream scheduling (title, description, date/time, t
    - Save it as `%APPDATA%\yt-core-mcp\client_secret.json` (or set `YT_CORE_MCP_CLIENT_FILE`).
 2. **Build**: `npm ci && npm run build`
 3. **Log in** (in a terminal, not through the AI): `node dist/bin.js auth`
-   - add permissions later: `node dist/bin.js auth --add analytics` (groups: `engagement` for captions + comments, `analytics`)
+   - add permissions later: `node dist/bin.js auth --add analytics` (groups: `engagement` for captions + comments, `analytics`, or `all` for every group at once)
    - `--status`, `--logout` (revokes the token at Google)
 4. **Register in Claude Code**: `claude mcp add yt-core -- node D:/Projects/yt-core-mcp/dist/bin.js`
 5. **Local files** (thumbnails, videos, captions): set `YT_CORE_MCP_MEDIA_ROOT` to the only folder the server may read (e.g. `D:\Media\YouTube`). Unset ⇒ file uploads are disabled.
