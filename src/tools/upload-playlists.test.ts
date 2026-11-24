@@ -1,4 +1,5 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ElicitRequestSchema, type ElicitResult } from '@modelcontextprotocol/sdk/types.js';
 import type { youtube_v3 } from '@googleapis/youtube';
@@ -7,14 +8,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { TokenStore } from '../auth/token-store.js';
 import { MEDIA_ROOT_ENV } from '../files/file-guard.js';
-import { createServer } from '../server.js';
 import { UNTRUSTED_NOTICE } from './result.js';
-import { addPlaylistItem } from './upload-playlists.js';
+import type { AuthFactory } from './resumable-upload.js';
+import { addPlaylistItem, registerUploadAndPlaylistTools } from './upload-playlists.js';
 import type { YouTubeFactory } from './youtube.js';
-
-const emptyStore = new TokenStore({ get: () => null, set: () => undefined, delete: () => false });
 
 // Minimal MP4 header: box size + "ftyp" + brand.
 const MP4 = Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from('ftypisom'), Buffer.alloc(52)]);
@@ -26,6 +24,8 @@ function fakeYouTube() {
     if (!(opts.data instanceof Readable)) throw new Error('expected a stream');
     for await (const chunk of opts.data) chunks.push(chunk as Buffer);
     return {
+      status: 200,
+      headers: new Headers(),
       data: {
         id: 'v1',
         snippet: { title: 'My video', bytes: Buffer.concat(chunks).length },
@@ -53,17 +53,19 @@ function fakeYouTube() {
     data: { id: 'PLI1', snippet: { playlistId: 'PL1', resourceId: { videoId: 'v1' }, position: 0 } },
   });
   const client = {
-    context: { _options: { auth: { request: authRequest } } },
     playlists: { list: playlistsList, insert: playlistsInsert },
     playlistItems: { insert: playlistItemsInsert },
   } as unknown as youtube_v3.Youtube;
   const factory = vi.fn<YouTubeFactory>(() => client);
-  return { client, factory, authRequest, playlistsList, playlistsInsert, playlistItemsInsert };
+  const authFactory = vi.fn(() => ({ request: authRequest })) as unknown as AuthFactory;
+  return { client, factory, authFactory, authRequest, playlistsList, playlistsInsert, playlistItemsInsert };
 }
 
-async function connect(yt: YouTubeFactory, elicit?: () => ElicitResult) {
+async function connect(yt: ReturnType<typeof fakeYouTube>, elicit?: () => ElicitResult) {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  await createServer(emptyStore, yt).connect(serverTransport);
+  const server = new McpServer({ name: 'test', version: '0' });
+  registerUploadAndPlaylistTools(server, yt.factory, yt.authFactory);
+  await server.connect(serverTransport);
   const client = new Client({ name: 'test', version: '0' }, { capabilities: elicit ? { elicitation: {} } : {} });
   if (elicit) client.setRequestHandler(ElicitRequestSchema, elicit);
   await client.connect(clientTransport);
@@ -89,7 +91,7 @@ describe('upload and playlist tools', () => {
   });
 
   it('have correct annotations', async () => {
-    const { tools } = await (await connect(fakeYouTube().factory)).listTools();
+    const { tools } = await (await connect(fakeYouTube())).listTools();
     const byName = (n: string) => tools.find((t) => t.name === n);
     expect(byName('playlist_list')?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
     for (const name of ['video_upload', 'playlist_create', 'playlist_add_item']) {
@@ -106,11 +108,12 @@ describe('upload and playlist tools', () => {
   it('video_upload starts a resumable session and streams the guarded file', async () => {
     await writeFile(join(media, 'clip.mp4'), MP4);
     const yt = fakeYouTube();
-    const client = await connect(yt.factory);
+    const client = await connect(yt);
     const result = await client.callTool({ name: 'video_upload', arguments: { file: 'clip.mp4', title: 'My video' } });
 
     expect(result.isError).toBeFalsy();
-    expect(yt.factory).toHaveBeenCalledWith('core');
+    expect(yt.authFactory).toHaveBeenCalledWith('core');
+    expect(yt.factory).not.toHaveBeenCalled();
     expect(yt.authRequest).toHaveBeenNthCalledWith(1, {
       url: 'https://www.googleapis.com/upload/youtube/v3/videos',
       method: 'POST',
@@ -123,7 +126,11 @@ describe('upload and playlist tools', () => {
       expect.objectContaining({
         url: 'https://upload.example/session1',
         method: 'PUT',
-        headers: { 'Content-Length': String(MP4.length), 'Content-Type': 'video/mp4' },
+        headers: {
+          'Content-Length': String(MP4.length),
+          'Content-Type': 'video/mp4',
+          'Content-Range': `bytes 0-${String(MP4.length - 1)}/${String(MP4.length)}`,
+        },
       }),
     );
     expect(parseText(result)).toEqual({
@@ -136,7 +143,7 @@ describe('upload and playlist tools', () => {
 
   it('video_upload refuses files outside the media folder without calling the API', async () => {
     const yt = fakeYouTube();
-    const client = await connect(yt.factory);
+    const client = await connect(yt);
     const result = await client.callTool({ name: 'video_upload', arguments: { file: '../secret.mp4', title: 'x' } });
     expect(result.isError).toBe(true);
     expect(result.content).toEqual([{ type: 'text', text: expect.stringMatching(/^File refused/) as unknown }]);
@@ -145,7 +152,7 @@ describe('upload and playlist tools', () => {
 
   it('video_upload rejects invalid text without calling the API', async () => {
     const yt = fakeYouTube();
-    const client = await connect(yt.factory);
+    const client = await connect(yt);
     for (const args of [{ title: 'a > b' }, { title: 'x', description: '<script>' }, { title: 'x', tags: ['a'.repeat(250), 'b'.repeat(250)] }]) {
       const result = await client.callTool({ name: 'video_upload', arguments: { file: 'clip.mp4', ...args } });
       expect(result.isError).toBe(true);
@@ -156,7 +163,7 @@ describe('upload and playlist tools', () => {
   it('video_upload refuses non-video files', async () => {
     await writeFile(join(media, 'fake.mp4'), 'not a video');
     const yt = fakeYouTube();
-    const result = await (await connect(yt.factory)).callTool({
+    const result = await (await connect(yt)).callTool({
       name: 'video_upload',
       arguments: { file: 'fake.mp4', title: 'x' },
     });
@@ -166,7 +173,7 @@ describe('upload and playlist tools', () => {
 
   it('playlist_list lists my playlists as untrusted data', async () => {
     const yt = fakeYouTube();
-    const result = await (await connect(yt.factory)).callTool({ name: 'playlist_list', arguments: {} });
+    const result = await (await connect(yt)).callTool({ name: 'playlist_list', arguments: {} });
     expect(yt.playlistsList).toHaveBeenCalledWith({
       part: ['snippet', 'status', 'contentDetails'],
       mine: true,
@@ -185,7 +192,7 @@ describe('upload and playlist tools', () => {
 
   it('playlist_create defaults to private', async () => {
     const yt = fakeYouTube();
-    const result = await (await connect(yt.factory)).callTool({ name: 'playlist_create', arguments: { title: 'New' } });
+    const result = await (await connect(yt)).callTool({ name: 'playlist_create', arguments: { title: 'New' } });
     expect(yt.playlistsInsert).toHaveBeenCalledWith({
       part: ['snippet', 'status'],
       requestBody: { snippet: { title: 'New' }, status: { privacyStatus: 'private' } },
@@ -200,7 +207,7 @@ describe('upload and playlist tools', () => {
     await writeFile(join(media, 'clip.mp4'), MP4);
     const yt = fakeYouTube();
     const elicit = vi.fn((): ElicitResult => ({ action: 'accept', content: { confirm: true } }));
-    const result = await (await connect(yt.factory, elicit)).callTool({
+    const result = await (await connect(yt, elicit)).callTool({
       name: 'video_upload',
       arguments: { file: 'clip.mp4', title: 'My video', privacyStatus: 'public' },
     });
@@ -216,12 +223,12 @@ describe('upload and playlist tools', () => {
     await writeFile(join(media, 'clip.mp4'), MP4);
     const yt = fakeYouTube();
     const args = { file: 'clip.mp4', title: 'My video', privacyStatus: 'unlisted' };
-    const declined = await (await connect(yt.factory, () => ({ action: 'decline' }))).callTool({
+    const declined = await (await connect(yt, () => ({ action: 'decline' }))).callTool({
       name: 'video_upload',
       arguments: args,
     });
     expect(JSON.stringify(declined.content)).toMatch(/not confirmed/);
-    const unsupported = await (await connect(yt.factory)).callTool({ name: 'video_upload', arguments: args });
+    const unsupported = await (await connect(yt)).callTool({ name: 'video_upload', arguments: args });
     expect(JSON.stringify(unsupported.content)).toMatch(/does not support elicitation/);
     expect(yt.authRequest).not.toHaveBeenCalled();
   });
@@ -229,7 +236,7 @@ describe('upload and playlist tools', () => {
   it('playlist_create asks before creating a public playlist', async () => {
     const yt = fakeYouTube();
     const elicit = vi.fn((): ElicitResult => ({ action: 'accept', content: { confirm: true } }));
-    const client = await connect(yt.factory, elicit);
+    const client = await connect(yt, elicit);
     const result = await client.callTool({ name: 'playlist_create', arguments: { title: 'New', privacyStatus: 'public' } });
     expect(result.isError).toBeFalsy();
     expect(elicit).toHaveBeenCalledOnce();
@@ -240,7 +247,7 @@ describe('upload and playlist tools', () => {
 
   it('playlist_create creates nothing when public is declined', async () => {
     const yt = fakeYouTube();
-    const result = await (await connect(yt.factory, () => ({ action: 'decline' }))).callTool({
+    const result = await (await connect(yt, () => ({ action: 'decline' }))).callTool({
       name: 'playlist_create',
       arguments: { title: 'New', privacyStatus: 'unlisted' },
     });
@@ -250,7 +257,7 @@ describe('upload and playlist tools', () => {
 
   it('playlist_add_item inserts a playlist item', async () => {
     const yt = fakeYouTube();
-    const result = await (await connect(yt.factory)).callTool({
+    const result = await (await connect(yt)).callTool({
       name: 'playlist_add_item',
       arguments: { playlistId: 'PL1', videoId: 'dQw4w9WgXcQ', position: 0 },
     });
@@ -278,7 +285,7 @@ describe('upload and playlist tools', () => {
     { playlistId: 'PL1', videoId: 'v1' },
   ])('playlist_add_item rejects invalid ids without calling the API (%o)', async (args) => {
     const yt = fakeYouTube();
-    const result = await (await connect(yt.factory)).callTool({ name: 'playlist_add_item', arguments: args });
+    const result = await (await connect(yt)).callTool({ name: 'playlist_add_item', arguments: args });
     expect(result.isError).toBe(true);
     expect(yt.playlistItemsInsert).not.toHaveBeenCalled();
   });

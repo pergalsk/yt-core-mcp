@@ -1,10 +1,10 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { youtube_v3 } from '@googleapis/youtube';
-import type { OAuth2Client } from 'google-auth-library';
 import { z } from 'zod';
 import { openGuardedFile } from '../files/file-guard.js';
 import { READ_ONLY, WRITE } from './annotations.js';
 import { confirmPrivacy } from './confirm.js';
+import { resumableUpload, type AuthFactory } from './resumable-upload.js';
 import { runTool, untrustedResult } from './result.js';
 import { description, pageToken, resourceId, tags, title, videoId } from './schemas.js';
 import type { YouTubeFactory } from './youtube.js';
@@ -29,7 +29,7 @@ export async function addPlaylistItem(
   return res.data;
 }
 
-export function registerUploadAndPlaylistTools(server: McpServer, yt: YouTubeFactory): void {
+export function registerUploadAndPlaylistTools(server: McpServer, yt: YouTubeFactory, auth: AuthFactory): void {
   server.registerTool(
     'video_upload',
     {
@@ -51,13 +51,9 @@ export function registerUploadAndPlaylistTools(server: McpServer, yt: YouTubeFac
     },
     (args) =>
       runTool(async () => {
-        const client = yt('core');
         const file = await openGuardedFile(args.file, 'video');
         try {
           await confirmPrivacy(server, `new video "${args.title}"`, args.privacyStatus);
-          // The googleapis client only does multipart uploads, so the resumable protocol
-          // is done with the client's own OAuth credentials.
-          const auth = client.context._options.auth as OAuth2Client;
           const video: youtube_v3.Schema$Video = {
             snippet: {
               title: args.title,
@@ -67,29 +63,19 @@ export function registerUploadAndPlaylistTools(server: McpServer, yt: YouTubeFac
             },
             status: { privacyStatus: args.privacyStatus },
           };
-          // Step 1: start a resumable session; the upload URL comes back in the Location header.
-          const session = await auth.request({
+          // The googleapis client only does multipart uploads, so the resumable protocol
+          // is done with the OAuth client directly.
+          const data = await resumableUpload<youtube_v3.Schema$Video>(auth('core'), {
             url: UPLOAD_URL,
-            method: 'POST',
             params: { uploadType: 'resumable', part: 'snippet,status' },
-            headers: { 'X-Upload-Content-Length': String(file.size), 'X-Upload-Content-Type': file.mimeType },
-            data: video,
-          });
-          const location = session.headers.get('location');
-          if (!location) throw new Error('YouTube did not return an upload URL.');
-
-          // Step 2: send the file bytes to the session URL (read only from the guarded handle).
-          const res = await auth.request<youtube_v3.Schema$Video>({
-            url: location,
-            method: 'PUT',
-            headers: { 'Content-Length': String(file.size), 'Content-Type': file.mimeType },
-            data: file.handle.createReadStream({ start: 0, autoClose: false }),
+            metadata: video,
+            file,
           });
           return untrustedResult({
-            id: res.data.id,
-            title: res.data.snippet?.title,
-            uploadStatus: res.data.status?.uploadStatus,
-            privacyStatus: res.data.status?.privacyStatus,
+            id: data.id,
+            title: data.snippet?.title,
+            uploadStatus: data.status?.uploadStatus,
+            privacyStatus: data.status?.privacyStatus,
           });
         } finally {
           await file.handle.close();
