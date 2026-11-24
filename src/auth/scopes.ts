@@ -6,10 +6,8 @@
 export const SCOPE_GROUPS = {
   // Live broadcasts, streams, thumbnails, video metadata, playlists, uploads.
   core: ['https://www.googleapis.com/auth/youtube'],
-  // Captions and comments require the force-ssl scope. The two groups are aliases:
-  // granting one grants the other (see SHARED_SCOPE_NOTE).
-  captions: ['https://www.googleapis.com/auth/youtube.force-ssl'],
-  comments: ['https://www.googleapis.com/auth/youtube.force-ssl'],
+  // Captions and comments both require the force-ssl scope.
+  engagement: ['https://www.googleapis.com/auth/youtube.force-ssl'],
   analytics: ['https://www.googleapis.com/auth/yt-analytics.readonly'],
 } as const satisfies Record<string, readonly string[]>;
 
@@ -17,21 +15,17 @@ export type ScopeGroup = keyof typeof SCOPE_GROUPS;
 
 export const ALL_GROUPS = Object.keys(SCOPE_GROUPS) as ScopeGroup[];
 
-export function isScopeGroup(value: string): value is ScopeGroup {
-  return Object.hasOwn(SCOPE_GROUPS, value);
+/** Older group names still accepted by `auth --add`. */
+const GROUP_ALIASES: Record<string, ScopeGroup> = { captions: 'engagement', comments: 'engagement' };
+
+/** Resolves a group name or alias to a scope group, or null if unknown. */
+export function resolveGroup(name: string): ScopeGroup | null {
+  if (Object.hasOwn(SCOPE_GROUPS, name)) return name as ScopeGroup;
+  return Object.hasOwn(GROUP_ALIASES, name) ? (GROUP_ALIASES[name] ?? null) : null;
 }
 
 export function scopesFor(groups: readonly ScopeGroup[]): string[] {
   return [...new Set(groups.flatMap((g) => SCOPE_GROUPS[g]))];
-}
-
-export const SHARED_SCOPE_NOTE =
-  'The captions and comments groups share one OAuth scope (youtube.force-ssl): granting one grants the other.';
-
-/** Other groups that request exactly the same scopes as `group` (aliases). */
-export function sharedWith(group: ScopeGroup): ScopeGroup[] {
-  const key = SCOPE_GROUPS[group].join(' ');
-  return ALL_GROUPS.filter((g) => g !== group && SCOPE_GROUPS[g].join(' ') === key);
 }
 
 export function grantedGroups(grantedScopes: readonly string[]): ScopeGroup[] {

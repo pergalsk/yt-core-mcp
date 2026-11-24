@@ -13,13 +13,13 @@ export function registerCaptionTools(server: McpServer, yt: YouTubeFactory): voi
       title: 'List captions',
       description:
         'Lists caption tracks of one of your videos (YouTube Data API captions.list). Costs 50 quota units. ' +
-        'Needs the `captions` permission group (shares its OAuth scope with `comments`).',
+        'Needs the `engagement` permission group.',
       inputSchema: { videoId },
       annotations: READ_ONLY,
     },
     (args) =>
       runTool(async () => {
-        const res = await yt('captions').captions.list({ part: ['snippet'], videoId: args.videoId });
+        const res = await yt('engagement').captions.list({ part: ['snippet'], videoId: args.videoId });
         return untrustedResult({
           items: (res.data.items ?? []).map((c) => ({
             id: c.id,
@@ -41,7 +41,7 @@ export function registerCaptionTools(server: McpServer, yt: YouTubeFactory): voi
       description:
         'Uploads a new SRT or VTT caption track to one of your videos (YouTube Data API captions.insert). ' +
         'Costs 400 quota units. The file must be inside the media folder (YT_CORE_MCP_MEDIA_ROOT). ' +
-        'Needs the `captions` permission group (shares its OAuth scope with `comments`).',
+        'Needs the `engagement` permission group.',
       inputSchema: {
         videoId,
         file: z.string().min(1).max(1000).describe('Path to the .srt/.vtt file, absolute or relative to the media folder.'),
@@ -55,7 +55,7 @@ export function registerCaptionTools(server: McpServer, yt: YouTubeFactory): voi
       runTool(async () => {
         const file = await openGuardedFile(args.file, 'caption');
         try {
-          const res = await yt('captions').captions.insert({
+          const res = await yt('engagement').captions.insert({
             part: ['snippet'],
             requestBody: {
               snippet: { videoId: args.videoId, language: args.language, name: args.name, isDraft: args.isDraft },

@@ -13,7 +13,7 @@ export function registerCommentTools(server: McpServer, yt: YouTubeFactory): voi
       title: 'List comments',
       description:
         'Lists top-level comment threads of a video (YouTube Data API commentThreads.list). Costs 1 quota unit. ' +
-        'Needs the `comments` permission group (shares its OAuth scope with `captions`). ' +
+        'Needs the `engagement` permission group. ' +
         'Use topLevelCommentId as parentId for comment_reply.',
       inputSchema: {
         videoId,
@@ -25,7 +25,7 @@ export function registerCommentTools(server: McpServer, yt: YouTubeFactory): voi
     },
     (args) =>
       runTool(async () => {
-        const res = await yt('comments').commentThreads.list({
+        const res = await yt('engagement').commentThreads.list({
           part: ['snippet'],
           videoId: args.videoId,
           order: args.order,
@@ -58,7 +58,7 @@ export function registerCommentTools(server: McpServer, yt: YouTubeFactory): voi
       title: 'Reply to comment',
       description:
         'Posts a public reply to a comment (YouTube Data API comments.insert). Costs 50 quota units. ' +
-        'Needs the `comments` permission group (shares its OAuth scope with `captions`). ' +
+        'Needs the `engagement` permission group. ' +
         'The user must confirm the reply in the client; refused if the client cannot ask for confirmation.',
       inputSchema: {
         parentId: z.string().min(1).max(200).describe('Id of the top-level comment to reply to (topLevelCommentId).'),
@@ -69,7 +69,7 @@ export function registerCommentTools(server: McpServer, yt: YouTubeFactory): voi
     (args) =>
       runTool(async () => {
         await confirmAction(server, `Post this public reply to comment ${args.parentId}?\n\n${args.text}`);
-        const res = await yt('comments').comments.insert({
+        const res = await yt('engagement').comments.insert({
           part: ['snippet'],
           requestBody: { snippet: { parentId: args.parentId, textOriginal: args.text } },
         });
