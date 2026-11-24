@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { checkRefreshToken } from './auth/client.js';
+import { checkRefreshToken, getAuthorizedClient } from './auth/client.js';
 import { loadConfig, SERVER_VERSION } from './config.js';
 import { grantedGroups, ALL_GROUPS, SHARED_SCOPE_NOTE } from './auth/scopes.js';
 import { TokenStore } from './auth/token-store.js';
@@ -58,7 +58,7 @@ export function createServer(store = new TokenStore(), yt: YouTubeFactory = yout
   );
 
   registerSearchTools(server, yt);
-  registerUploadAndPlaylistTools(server, yt);
+  registerUploadAndPlaylistTools(server, yt, (g) => getAuthorizedClient(g, store));
   registerCaptionTools(server, yt);
   registerVideoTools(server, yt);
   registerCommentTools(server, yt);
