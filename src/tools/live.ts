@@ -212,6 +212,10 @@ function videoPatch(args: Pick<VideoPatch, 'categoryId' | 'tags' | 'defaultLangu
 }
 
 function summary(b: youtube_v3.Schema$LiveBroadcast) {
+  // Never started (created/ready) and the planned start is past or missing.
+  const start = b.snippet?.scheduledStartTime;
+  const lifeCycle = b.status?.lifeCycleStatus;
+  const stale = (lifeCycle === 'created' || lifeCycle === 'ready') && (!start || Date.parse(start) < Date.now());
   return {
     id: b.id,
     title: b.snippet?.title,
@@ -221,6 +225,7 @@ function summary(b: youtube_v3.Schema$LiveBroadcast) {
     privacyStatus: b.status?.privacyStatus,
     lifeCycleStatus: b.status?.lifeCycleStatus,
     boundStreamId: b.contentDetails?.boundStreamId,
+    ...(stale && { stale: true }),
   };
 }
 
@@ -384,7 +389,8 @@ export function registerLiveTools(server: McpServer, yt: YouTubeFactory): void {
       description:
         'Lists your live broadcasts by status and type (liveBroadcasts.list). broadcastType `persistent` is the ' +
         '"Stream now" broadcast; default `all` includes it. Results are paged (use nextPageToken); ' +
-        'YouTube does not guarantee their order. Costs 1 quota unit. ' +
+        'YouTube does not guarantee their order. `stale: true` marks a never-started broadcast whose start time ' +
+        'is past or missing (YouTube still calls it upcoming). Costs 1 quota unit. ' +
         'Needs the `core` permission group.',
       inputSchema: {
         status: z.enum(['upcoming', 'active', 'completed', 'all']).default('upcoming'),
