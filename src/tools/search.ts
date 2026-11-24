@@ -20,7 +20,8 @@ export function registerSearchTools(server: McpServer, yt: YouTubeFactory): void
       title: 'Search YouTube',
       description:
         'Searches public YouTube videos, channels or playlists (YouTube Data API search.list). ' +
-        'WARNING: every call costs 100 quota units (default daily quota is 10,000), so search only when needed. ' +
+        'WARNING: search.list has its own small daily quota: 100 calls per day by default (each call costs 1 unit of it, ' +
+        'separate from the 10,000 units per day shared by other tools), so search only when needed. ' +
         'Needs the `core` permission group.',
       inputSchema: {
         q: z.string().min(1).max(500).describe('Search query.'),

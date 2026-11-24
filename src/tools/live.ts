@@ -245,7 +245,7 @@ export function registerLiveTools(server: McpServer, yt: YouTubeFactory): void {
         'Plans (never starts) a live broadcast: liveBroadcasts.insert → bind to an existing stream → thumbnail → ' +
         'category/tags/language (videos.update) → add to playlist. Default privacy is private. Options not given are ' +
         'not sent, so YouTube defaults apply. If a later step fails, the broadcast is kept and the result lists ' +
-        'what failed. Costs 50 quota units, plus 50 each for bind, thumbnail and playlist, and 51 for ' +
+        'what failed. Costs 1 quota unit, plus 1 for bind, 50 each for thumbnail and playlist, and 51 for ' +
         'category/tags/language. Needs the `core` permission group.',
       inputSchema: {
         title,
@@ -306,7 +306,7 @@ export function registerLiveTools(server: McpServer, yt: YouTubeFactory): void {
       title: 'Update live broadcast',
       description:
         'Changes a planned broadcast. Only the given fields change; the rest is kept (fetch → merge → update). ' +
-        'Privacy is changed with live_publish_broadcast. Costs 51 quota units for broadcast fields, 50 for the ' +
+        'Privacy is changed with live_publish_broadcast. Costs 2 quota units for broadcast fields, 50 for the ' +
         'thumbnail and 51 for category/tags/language (only the parts that change). Needs the `core` permission group.',
       inputSchema: {
         broadcastId,
@@ -352,7 +352,7 @@ export function registerLiveTools(server: McpServer, yt: YouTubeFactory): void {
       description:
         'Changes the privacy of a planned broadcast to public or unlisted (does not start it). Asks the user to ' +
         'confirm first. Unverified API projects may be refused by YouTube; then publish in YouTube Studio. ' +
-        'Costs ~51 quota units. ' +
+        'Costs 2 quota units. ' +
         'Needs the `core` permission group.',
       inputSchema: { broadcastId, privacyStatus: z.enum(['public', 'unlisted']) },
       annotations: OVERWRITE,

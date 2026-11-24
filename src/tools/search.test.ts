@@ -60,7 +60,7 @@ describe('search tools', () => {
       const tool = tools.find((t) => t.name === name);
       expect(tool?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false, openWorldHint: true });
     }
-    expect(tools.find((t) => t.name === 'search_public')?.description).toMatch(/100 quota units/);
+    expect(tools.find((t) => t.name === 'search_public')?.description).toMatch(/own small daily quota: 100 calls per day/);
   });
 
   it('search_public calls search.list and marks results as untrusted', async () => {
