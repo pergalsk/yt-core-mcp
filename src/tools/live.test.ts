@@ -444,3 +444,30 @@ describe('live_list_broadcasts broadcastType', () => {
     expect(yt.api.liveBroadcasts.list).not.toHaveBeenCalled();
   });
 });
+
+describe('live_list_broadcasts stale flag', () => {
+  async function listItems(items: youtube_v3.Schema$LiveBroadcast[]) {
+    const yt = fakeYouTube();
+    yt.api.liveBroadcasts.list.mockResolvedValue({ data: { items } });
+    const result = await (await connect(yt.factory)).callTool({ name: 'live_list_broadcasts', arguments: {} });
+    return parseData(result)['items'] as Record<string, unknown>[];
+  }
+
+  it('flags never-started broadcasts with a past or missing start time', async () => {
+    const items = await listItems([
+      { id: 'a', snippet: { scheduledStartTime: '2022-03-01T18:00:00Z' }, status: { lifeCycleStatus: 'ready' } },
+      { id: 'b', snippet: { scheduledStartTime: '2022-03-01T18:00:00Z' }, status: { lifeCycleStatus: 'created' } },
+      { id: 'c', snippet: {}, status: { lifeCycleStatus: 'created' } },
+    ]);
+    expect(items.map((i) => i['stale'])).toEqual([true, true, true]);
+  });
+
+  it('does not flag future or already started broadcasts', async () => {
+    const items = await listItems([
+      { id: 'a', snippet: { scheduledStartTime: '2026-12-01T18:00:00Z' }, status: { lifeCycleStatus: 'ready' } },
+      { id: 'b', snippet: { scheduledStartTime: '2022-03-01T18:00:00Z' }, status: { lifeCycleStatus: 'complete' } },
+      { id: 'c', snippet: { scheduledStartTime: '2026-05-31T23:00:00Z' }, status: { lifeCycleStatus: 'live' } },
+    ]);
+    expect(items.every((i) => !('stale' in i))).toBe(true);
+  });
+});
