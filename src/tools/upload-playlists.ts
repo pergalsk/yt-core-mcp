@@ -4,6 +4,7 @@ import type { OAuth2Client } from 'google-auth-library';
 import { z } from 'zod';
 import { openGuardedFile } from '../files/file-guard.js';
 import { READ_ONLY, WRITE } from './annotations.js';
+import { confirmPrivacy } from './confirm.js';
 import { runTool, untrustedResult } from './result.js';
 import { description, pageToken, resourceId, tags, title, videoId } from './schemas.js';
 import type { YouTubeFactory } from './youtube.js';
@@ -53,6 +54,7 @@ export function registerUploadAndPlaylistTools(server: McpServer, yt: YouTubeFac
         const client = yt('core');
         const file = await openGuardedFile(args.file, 'video');
         try {
+          await confirmPrivacy(server, `new video "${args.title}"`, args.privacyStatus);
           // The googleapis client only does multipart uploads, so the resumable protocol
           // is done with the client's own OAuth credentials.
           const auth = client.context._options.auth as OAuth2Client;
@@ -146,6 +148,7 @@ export function registerUploadAndPlaylistTools(server: McpServer, yt: YouTubeFac
     },
     (args) =>
       runTool(async () => {
+        await confirmPrivacy(server, `new playlist "${args.title}"`, args.privacyStatus);
         const res = await yt('core').playlists.insert({
           part: ['snippet', 'status'],
           requestBody: {

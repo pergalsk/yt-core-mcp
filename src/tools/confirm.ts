@@ -21,3 +21,20 @@ export async function confirmAction(server: McpServer, message: string): Promise
     throw new Error('Action was not confirmed by the user. Nothing was done.');
   }
 }
+
+/**
+ * Asks the user to confirm when `next` privacy is public or unlisted and differs from `current`
+ * (undefined for new items). Going private or keeping the same value needs no confirmation.
+ */
+export async function confirmPrivacy(
+  server: McpServer,
+  what: string,
+  next: string | null | undefined,
+  current?: string | null,
+): Promise<void> {
+  if ((next !== 'public' && next !== 'unlisted') || next === current) return;
+  await confirmAction(
+    server,
+    `Make ${what} ${next}? ${next === 'public' ? 'Anyone can find it' : 'Anyone with the link can see it'}.`,
+  );
+}

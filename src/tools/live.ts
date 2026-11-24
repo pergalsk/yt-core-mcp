@@ -5,7 +5,7 @@ import { loadConfig } from '../config.js';
 import { openGuardedFile } from '../files/file-guard.js';
 import { defined } from '../util/defined.js';
 import { OVERWRITE, READ_ONLY, WRITE } from './annotations.js';
-import { confirmAction } from './confirm.js';
+import { confirmAction, confirmPrivacy } from './confirm.js';
 import { runTool, untrustedResult } from './result.js';
 import { description, languageCode, maxResults, pageToken, resourceId, tags, title, videoId } from './schemas.js';
 import { addPlaylistItem } from './upload-playlists.js';
@@ -261,6 +261,7 @@ export function registerLiveTools(server: McpServer, yt: YouTubeFactory): void {
         const scheduledStartTime = toUtcIso(args.startTime, args.timezone);
         // Check the cover image before creating anything.
         if (args.thumbnailPath) await (await openGuardedFile(args.thumbnailPath, 'thumbnail')).handle.close();
+        await confirmPrivacy(server, `new live broadcast "${args.title}" (start ${scheduledStartTime})`, args.privacyStatus);
 
         const contentDetails = defined({
           enableDvr: args.enableDvr,

@@ -1,5 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { ElicitRequestSchema, type ElicitResult } from '@modelcontextprotocol/sdk/types.js';
 import type { youtube_v3 } from '@googleapis/youtube';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -60,10 +61,11 @@ function fakeYouTube() {
   return { client, factory, authRequest, playlistsList, playlistsInsert, playlistItemsInsert };
 }
 
-async function connect(yt: YouTubeFactory) {
+async function connect(yt: YouTubeFactory, elicit?: () => ElicitResult) {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await createServer(emptyStore, yt).connect(serverTransport);
-  const client = new Client({ name: 'test', version: '0' });
+  const client = new Client({ name: 'test', version: '0' }, { capabilities: elicit ? { elicitation: {} } : {} });
+  if (elicit) client.setRequestHandler(ElicitRequestSchema, elicit);
   await client.connect(clientTransport);
   return client;
 }
@@ -192,6 +194,58 @@ describe('upload and playlist tools', () => {
       notice: UNTRUSTED_NOTICE,
       untrustedData: { id: 'PL2', title: 'New', privacyStatus: 'private' },
     });
+  });
+
+  it('video_upload asks before uploading as public or unlisted', async () => {
+    await writeFile(join(media, 'clip.mp4'), MP4);
+    const yt = fakeYouTube();
+    const elicit = vi.fn((): ElicitResult => ({ action: 'accept', content: { confirm: true } }));
+    const result = await (await connect(yt.factory, elicit)).callTool({
+      name: 'video_upload',
+      arguments: { file: 'clip.mp4', title: 'My video', privacyStatus: 'public' },
+    });
+    expect(result.isError).toBeFalsy();
+    expect(elicit).toHaveBeenCalledOnce();
+    expect(yt.authRequest).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ data: { snippet: { title: 'My video' }, status: { privacyStatus: 'public' } } }),
+    );
+  });
+
+  it('video_upload uploads nothing when public is declined or cannot be confirmed', async () => {
+    await writeFile(join(media, 'clip.mp4'), MP4);
+    const yt = fakeYouTube();
+    const args = { file: 'clip.mp4', title: 'My video', privacyStatus: 'unlisted' };
+    const declined = await (await connect(yt.factory, () => ({ action: 'decline' }))).callTool({
+      name: 'video_upload',
+      arguments: args,
+    });
+    expect(JSON.stringify(declined.content)).toMatch(/not confirmed/);
+    const unsupported = await (await connect(yt.factory)).callTool({ name: 'video_upload', arguments: args });
+    expect(JSON.stringify(unsupported.content)).toMatch(/does not support elicitation/);
+    expect(yt.authRequest).not.toHaveBeenCalled();
+  });
+
+  it('playlist_create asks before creating a public playlist', async () => {
+    const yt = fakeYouTube();
+    const elicit = vi.fn((): ElicitResult => ({ action: 'accept', content: { confirm: true } }));
+    const client = await connect(yt.factory, elicit);
+    const result = await client.callTool({ name: 'playlist_create', arguments: { title: 'New', privacyStatus: 'public' } });
+    expect(result.isError).toBeFalsy();
+    expect(elicit).toHaveBeenCalledOnce();
+    expect(yt.playlistsInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ requestBody: { snippet: { title: 'New' }, status: { privacyStatus: 'public' } } }),
+    );
+  });
+
+  it('playlist_create creates nothing when public is declined', async () => {
+    const yt = fakeYouTube();
+    const result = await (await connect(yt.factory, () => ({ action: 'decline' }))).callTool({
+      name: 'playlist_create',
+      arguments: { title: 'New', privacyStatus: 'unlisted' },
+    });
+    expect(result.isError).toBe(true);
+    expect(yt.playlistsInsert).not.toHaveBeenCalled();
   });
 
   it('playlist_add_item inserts a playlist item', async () => {

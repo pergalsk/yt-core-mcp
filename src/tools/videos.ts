@@ -5,6 +5,7 @@ import { loadConfig } from '../config.js';
 import { openGuardedFile } from '../files/file-guard.js';
 import { defined } from '../util/defined.js';
 import { OVERWRITE, READ_ONLY } from './annotations.js';
+import { confirmPrivacy } from './confirm.js';
 import { jsonResult, runTool, untrustedResult } from './result.js';
 import { description, maxResults, pageToken, tags, title, videoId } from './schemas.js';
 import type { YouTubeFactory } from './youtube.js';
@@ -39,12 +40,13 @@ export interface VideoPatch {
 /**
  * Safe partial update. videos.update resets every omitted field of a sent part,
  * so we fetch the current video, merge the patch into its writable fields and
- * send only the parts that changed.
+ * send only the parts that changed. `beforeUpdate` runs after the fetch and can throw to cancel.
  */
 export async function updateVideo(
   api: youtube_v3.Youtube,
   id: string,
   patch: VideoPatch,
+  beforeUpdate?: (current: youtube_v3.Schema$Video) => Promise<void>,
 ): Promise<youtube_v3.Schema$Video> {
   const { privacyStatus, ...snippetPatch } = patch;
   const snippetChanged = Object.values(snippetPatch).some((v) => v !== undefined);
@@ -52,6 +54,7 @@ export async function updateVideo(
 
   const current = (await api.videos.list({ part: ['snippet', 'status'], id: [id] })).data.items?.[0];
   if (!current?.snippet || !current.status) throw new Error(`Video ${id} not found or not owned by you.`);
+  await beforeUpdate?.(current);
 
   const body: youtube_v3.Schema$Video = { id };
   const part: string[] = [];
@@ -128,7 +131,9 @@ export function registerVideoTools(server: McpServer, yt: YouTubeFactory): void 
     },
     ({ videoId: id, ...patch }) =>
       runTool(async () => {
-        const v = await updateVideo(yt('core'), id, patch);
+        const v = await updateVideo(yt('core'), id, patch, (current) =>
+          confirmPrivacy(server, `video "${current.snippet?.title ?? id}" (${id})`, patch.privacyStatus, current.status?.privacyStatus),
+        );
         return untrustedResult({ id: v.id, snippet: v.snippet, status: v.status });
       }),
   );
