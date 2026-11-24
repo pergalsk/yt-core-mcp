@@ -2,6 +2,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { loadClientConfig } from './client-config.js';
 import { grantedGroups, type ScopeGroup } from './scopes.js';
 import { TokenStore, type StoredCredential } from './token-store.js';
+import { log } from '../util/log.js';
 
 export class AuthRequiredError extends Error {
   constructor(message: string) {
@@ -45,12 +46,23 @@ export function getAuthorizedClient(group: ScopeGroup, store = new TokenStore())
   const { clientId, clientSecret } = loadClientConfig();
   const client = new OAuth2Client({ clientId, clientSecret });
   client.setCredentials({ refresh_token: stored.refreshToken });
+  let current = stored.refreshToken;
   client.on('tokens', (tokens) => {
-    if (tokens.refresh_token && tokens.refresh_token !== stored.refreshToken) {
-      const rotated = { refreshToken: tokens.refresh_token, scopes: stored.scopes };
+    if (!tokens.refresh_token || tokens.refresh_token === current) return;
+    // Runs inside an event emitter: a throw here could crash the server, so log and go on.
+    try {
+      const latest = store.load();
+      // Logged out or logged in again meanwhile: keep what is in the vault.
+      if (!latest || latest.refreshToken !== current) return;
+      const rotated = { ...latest, refreshToken: tokens.refresh_token };
       store.save(rotated);
+      current = rotated.refreshToken;
       // Same client, new token: keep it cached instead of rebuilding on the next call.
-      if (cached?.client === client) cached = { key: credentialKey(rotated), client };
+      if (cached?.client === client && cached.key === credentialKey(latest)) {
+        cached = { key: credentialKey(rotated), client };
+      }
+    } catch (err) {
+      log(`Could not save the rotated refresh token: ${err instanceof Error ? err.message : String(err)}`);
     }
   });
   cached = { key, client };
