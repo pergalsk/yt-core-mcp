@@ -378,6 +378,7 @@ describe('live tools', () => {
     expect(yt.api.liveBroadcasts.list).toHaveBeenCalledWith({
       part: ['snippet', 'status', 'contentDetails'],
       broadcastStatus: 'upcoming',
+      broadcastType: 'all',
       maxResults: 10,
     });
     expect(parseData(result)).toEqual({
@@ -456,5 +457,29 @@ describe('live_schedule_broadcast privacy confirmation', () => {
     const result = await (await connect(yt.factory, elicit)).callTool({ name: 'live_schedule_broadcast', arguments: args });
     expect(result.isError).toBeFalsy();
     expect(elicit).not.toHaveBeenCalled();
+  });
+});
+
+describe('live_list_broadcasts broadcastType', () => {
+  it('passes the event / persistent filter to YouTube', async () => {
+    for (const broadcastType of ['event', 'persistent']) {
+      const yt = fakeYouTube();
+      const result = await (await connect(yt.factory)).callTool({
+        name: 'live_list_broadcasts',
+        arguments: { status: 'all', broadcastType },
+      });
+      expect(result.isError).toBeFalsy();
+      expect(yt.api.liveBroadcasts.list).toHaveBeenCalledWith(expect.objectContaining({ broadcastStatus: 'all', broadcastType }));
+    }
+  });
+
+  it('rejects an unknown broadcastType without calling YouTube', async () => {
+    const yt = fakeYouTube();
+    const result = await (await connect(yt.factory)).callTool({
+      name: 'live_list_broadcasts',
+      arguments: { broadcastType: 'other' },
+    });
+    expect(result.isError).toBe(true);
+    expect(yt.api.liveBroadcasts.list).not.toHaveBeenCalled();
   });
 });
