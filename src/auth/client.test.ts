@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AuthRequiredError, checkRefreshToken, getAuthorizedClient } from './client.js';
+import { AuthRequiredError, checkRefreshToken, getAuthorizedClient, resetAuthorizedClient } from './client.js';
 import { SCOPE_GROUPS } from './scopes.js';
 import { TokenStore, type StoredCredential } from './token-store.js';
 
@@ -41,7 +41,10 @@ function memoryStore(initial: StoredCredential | null) {
     set: (v) => {
       value = v;
     },
-    delete: () => false,
+    delete: () => {
+      value = null;
+      return true;
+    },
   });
   return { store, saved: () => (value === null ? null : (JSON.parse(value) as StoredCredential)) };
 }
@@ -50,6 +53,7 @@ const coreScopes = [...SCOPE_GROUPS.core];
 
 describe('getAuthorizedClient', () => {
   beforeEach(() => {
+    resetAuthorizedClient();
     setCredentials.mockReset();
     on.mockReset();
   });
@@ -81,5 +85,41 @@ describe('getAuthorizedClient', () => {
     expect(saved()?.refreshToken).toBe('r1');
     onTokens({ refresh_token: 'r2' });
     expect(saved()).toEqual({ refreshToken: 'r2', scopes: coreScopes });
+  });
+
+  it('reuses one client while the stored credential stays the same', () => {
+    const { store } = memoryStore({ refreshToken: 'r1', scopes: [...coreScopes, ...SCOPE_GROUPS.analytics] });
+    const first = getAuthorizedClient('core', store);
+    expect(getAuthorizedClient('core', store)).toBe(first);
+    expect(getAuthorizedClient('analytics', store)).toBe(first);
+    expect(setCredentials).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the client after it saved a rotated refresh token', () => {
+    const { store } = memoryStore({ refreshToken: 'r1', scopes: coreScopes });
+    const first = getAuthorizedClient('core', store);
+    const [, onTokens] = on.mock.calls[0] as [string, (tokens: { refresh_token?: string }) => void];
+    onTokens({ refresh_token: 'r2' });
+    expect(getAuthorizedClient('core', store)).toBe(first);
+  });
+
+  it('builds a new client after `auth --add` changes the scopes', () => {
+    const { store } = memoryStore({ refreshToken: 'r1', scopes: coreScopes });
+    const first = getAuthorizedClient('core', store);
+    expect(() => getAuthorizedClient('analytics', store)).toThrow(/auth --add analytics/);
+    store.save({ refreshToken: 'r1', scopes: [...coreScopes, ...SCOPE_GROUPS.analytics] });
+    const second = getAuthorizedClient('analytics', store);
+    expect(second).not.toBe(first);
+    expect(getAuthorizedClient('core', store)).toBe(second);
+  });
+
+  it('builds a new client after logout and a new login', () => {
+    const { store } = memoryStore({ refreshToken: 'r1', scopes: coreScopes });
+    const first = getAuthorizedClient('core', store);
+    store.clear();
+    expect(() => getAuthorizedClient('core', store)).toThrow(/Not logged in/);
+    store.save({ refreshToken: 'r9', scopes: coreScopes });
+    expect(getAuthorizedClient('core', store)).not.toBe(first);
+    expect(setCredentials).toHaveBeenLastCalledWith({ refresh_token: 'r9' });
   });
 });
