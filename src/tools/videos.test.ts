@@ -1,5 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { ElicitRequestSchema, type ElicitResult } from '@modelcontextprotocol/sdk/types.js';
 import type { youtube_v3 } from '@googleapis/youtube';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -81,10 +82,11 @@ function fakeYouTube() {
   return { factory, api };
 }
 
-async function connect(yt: YouTubeFactory) {
+async function connect(yt: YouTubeFactory, elicit?: () => ElicitResult) {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await createServer(emptyStore, yt).connect(serverTransport);
-  const client = new Client({ name: 'test', version: '0' });
+  const client = new Client({ name: 'test', version: '0' }, { capabilities: elicit ? { elicitation: {} } : {} });
+  if (elicit) client.setRequestHandler(ElicitRequestSchema, elicit);
   await client.connect(clientTransport);
   return client;
 }
@@ -139,8 +141,11 @@ describe('video tools', () => {
 
   it('video_update keeps status fields and drops publishAt when made public', async () => {
     const yt = fakeYouTube();
-    const client = await connect(yt.factory);
+    const elicit = vi.fn((): ElicitResult => ({ action: 'accept', content: { confirm: true } }));
+    const client = await connect(yt.factory, elicit);
     await client.callTool({ name: 'video_update', arguments: { videoId: VID, privacyStatus: 'public' } });
+
+    expect(elicit).toHaveBeenCalledOnce();
 
     expect(yt.api.videos.update).toHaveBeenCalledWith({
       part: ['status'],
@@ -154,6 +159,35 @@ describe('video tools', () => {
         },
       },
     });
+  });
+
+  it('video_update changes nothing when going public is declined or cannot be confirmed', async () => {
+    const yt = fakeYouTube();
+    const declined = await (await connect(yt.factory, () => ({ action: 'decline' }))).callTool({
+      name: 'video_update',
+      arguments: { videoId: VID, privacyStatus: 'unlisted' },
+    });
+    expect(declined.isError).toBe(true);
+    expect(JSON.stringify(declined.content)).toMatch(/not confirmed/);
+    const unsupported = await (await connect(yt.factory)).callTool({
+      name: 'video_update',
+      arguments: { videoId: VID, privacyStatus: 'public' },
+    });
+    expect(JSON.stringify(unsupported.content)).toMatch(/does not support elicitation/);
+    expect(yt.api.videos.update).not.toHaveBeenCalled();
+  });
+
+  it('video_update does not ask when privacy stays the same or goes private', async () => {
+    const yt = fakeYouTube();
+    const elicit = vi.fn((): ElicitResult => ({ action: 'decline' }));
+    const client = await connect(yt.factory, elicit);
+    const toPrivate = await client.callTool({ name: 'video_update', arguments: { videoId: VID, privacyStatus: 'private' } });
+    expect(toPrivate.isError).toBeFalsy();
+    yt.api.videos.list.mockResolvedValue({ data: { items: [{ ...current, status: { privacyStatus: 'public' } }] } });
+    const same = await client.callTool({ name: 'video_update', arguments: { videoId: VID, privacyStatus: 'public' } });
+    expect(same.isError).toBeFalsy();
+    expect(elicit).not.toHaveBeenCalled();
+    expect(yt.api.videos.update).toHaveBeenCalledTimes(2);
   });
 
   it('video_update refuses empty patch and unknown video', async () => {

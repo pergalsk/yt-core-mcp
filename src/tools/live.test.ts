@@ -421,6 +421,45 @@ describe('live tools', () => {
   });
 });
 
+describe('live_schedule_broadcast privacy confirmation', () => {
+  const args = { title: 'Live', startTime: '2026-12-01T19:00Z' };
+
+  it('asks before scheduling a public broadcast', async () => {
+    const yt = fakeYouTube();
+    const elicit = vi.fn((): ElicitResult => ({ action: 'accept', content: { confirm: true } }));
+    const result = await (await connect(yt.factory, elicit)).callTool({
+      name: 'live_schedule_broadcast',
+      arguments: { ...args, privacyStatus: 'public' },
+    });
+    expect(result.isError).toBeFalsy();
+    expect(elicit).toHaveBeenCalledOnce();
+    expect(yt.api.liveBroadcasts.insert.mock.calls[0]?.[0].requestBody.status).toEqual({ privacyStatus: 'public' });
+  });
+
+  it('creates nothing when declined or the client cannot confirm', async () => {
+    const yt = fakeYouTube();
+    const declined = await (await connect(yt.factory, () => ({ action: 'decline' }))).callTool({
+      name: 'live_schedule_broadcast',
+      arguments: { ...args, privacyStatus: 'unlisted' },
+    });
+    expect(errorText(declined)).toMatch(/not confirmed/);
+    const unsupported = await (await connect(yt.factory)).callTool({
+      name: 'live_schedule_broadcast',
+      arguments: { ...args, privacyStatus: 'public' },
+    });
+    expect(errorText(unsupported)).toMatch(/does not support elicitation/);
+    expect(yt.api.liveBroadcasts.insert).not.toHaveBeenCalled();
+  });
+
+  it('does not ask for a private broadcast', async () => {
+    const yt = fakeYouTube();
+    const elicit = vi.fn((): ElicitResult => ({ action: 'decline' }));
+    const result = await (await connect(yt.factory, elicit)).callTool({ name: 'live_schedule_broadcast', arguments: args });
+    expect(result.isError).toBeFalsy();
+    expect(elicit).not.toHaveBeenCalled();
+  });
+});
+
 describe('live_list_broadcasts broadcastType', () => {
   it('passes the event / persistent filter to YouTube', async () => {
     for (const broadcastType of ['event', 'persistent']) {
