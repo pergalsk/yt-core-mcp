@@ -1,13 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { grantedGroups, isScopeGroup, scopesFor, sharedWith } from './scopes.js';
+import { grantedGroups, resolveGroup, scopesFor } from './scopes.js';
 
 describe('scopes', () => {
   it('core requests only the youtube scope', () => {
     expect(scopesFor(['core'])).toEqual(['https://www.googleapis.com/auth/youtube']);
-  });
-
-  it('deduplicates shared scopes', () => {
-    expect(scopesFor(['captions', 'comments'])).toHaveLength(1);
   });
 
   it('derives granted groups from scopes', () => {
@@ -15,17 +11,17 @@ describe('scopes', () => {
     expect(grantedGroups([])).toEqual([]);
   });
 
-  it('treats captions and comments as aliases of one scope', () => {
-    expect(sharedWith('captions')).toEqual(['comments']);
-    expect(sharedWith('comments')).toEqual(['captions']);
-    expect(sharedWith('core')).toEqual([]);
-    expect(sharedWith('analytics')).toEqual([]);
-    expect(grantedGroups(scopesFor(['captions']))).toEqual(['captions', 'comments']);
-    expect(grantedGroups(scopesFor(['comments']))).toEqual(['captions', 'comments']);
+  it('engagement uses the force-ssl scope, so existing credentials keep working', () => {
+    expect(scopesFor(['engagement'])).toEqual(['https://www.googleapis.com/auth/youtube.force-ssl']);
+    expect(grantedGroups(['https://www.googleapis.com/auth/youtube.force-ssl'])).toEqual(['engagement']);
   });
 
-  it('validates group names', () => {
-    expect(isScopeGroup('analytics')).toBe(true);
-    expect(isScopeGroup('toString')).toBe(false);
+  it('resolves group names and the captions/comments aliases', () => {
+    expect(resolveGroup('analytics')).toBe('analytics');
+    expect(resolveGroup('engagement')).toBe('engagement');
+    expect(resolveGroup('captions')).toBe('engagement');
+    expect(resolveGroup('comments')).toBe('engagement');
+    expect(resolveGroup('toString')).toBeNull();
+    expect(resolveGroup('nope')).toBeNull();
   });
 });

@@ -34,8 +34,7 @@ interface GoogleApiError {
 /** Which scope group a request needs, guessed from its URL. */
 function groupForUrl(url: string): ScopeGroup {
   if (url.includes('youtubeanalytics.googleapis.com')) return 'analytics';
-  if (url.includes('/youtube/v3/captions')) return 'captions';
-  if (url.includes('/youtube/v3/comment')) return 'comments';
+  if (url.includes('/youtube/v3/caption') || url.includes('/youtube/v3/comment')) return 'engagement';
   return 'core';
 }
 

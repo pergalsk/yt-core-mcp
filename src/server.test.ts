@@ -92,18 +92,15 @@ describe('tool descriptions', () => {
   it('name the permission group and quota cost of every tool', async () => {
     for (const [name, text] of await descriptions()) {
       if (name === 'auth_status') continue;
-      expect(text, name).toMatch(/Needs the `(core|captions|comments|analytics)` permission group/);
+      expect(text, name).toMatch(/Needs the `(core|engagement|analytics)` permission group/);
       expect(text, name).toMatch(/quota/i);
     }
   });
 
-  it('say that captions and comments share one OAuth scope', async () => {
+  it('use the engagement group for captions and comments', async () => {
     const d = await descriptions();
-    for (const name of ['comment_list', 'comment_reply']) {
-      expect(d.get(name)).toContain('Needs the `comments` permission group (shares its OAuth scope with `captions`)');
-    }
-    for (const name of ['caption_list', 'caption_upload']) {
-      expect(d.get(name)).toContain('Needs the `captions` permission group (shares its OAuth scope with `comments`)');
+    for (const name of ['comment_list', 'comment_reply', 'caption_list', 'caption_upload']) {
+      expect(d.get(name)).toContain('Needs the `engagement` permission group');
     }
   });
 
@@ -153,16 +150,13 @@ describe('auth_status', () => {
 
   it('lists granted and missing groups', async () => {
     vi.mocked(checkRefreshToken).mockResolvedValue(null);
-    const value = JSON.stringify({ refreshToken: 'rt', scopes: [...SCOPE_GROUPS.core, ...SCOPE_GROUPS.captions] });
+    const value = JSON.stringify({ refreshToken: 'rt', scopes: [...SCOPE_GROUPS.core, ...SCOPE_GROUPS.engagement] });
     expect(await authStatus(value)).toMatchObject({
-      grantedGroups: ['core', 'captions', 'comments'],
+      grantedGroups: ['core', 'engagement'],
       notGranted: ['analytics'],
     });
   });
 
-  it('says that captions and comments share one scope', async () => {
-    expect((await authStatus(null)).sharedScopes).toMatch(/captions and comments .*share one OAuth scope.*granting one grants the other/);
-  });
 
   it('reports a broken stored credential', async () => {
     expect(await authStatus('not json')).toMatchObject({ loggedIn: false, error: expect.stringMatching(/corrupted/) as unknown });

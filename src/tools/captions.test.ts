@@ -95,7 +95,7 @@ describe('caption tools', () => {
     const client = await connect(yt.factory);
     const result = await client.callTool({ name: 'caption_list', arguments: { videoId: 'dQw4w9WgXcQ' } });
 
-    expect(yt.factory).toHaveBeenCalledWith('captions');
+    expect(yt.factory).toHaveBeenCalledWith('engagement');
     expect(yt.captionsList).toHaveBeenCalledWith({ part: ['snippet'], videoId: 'dQw4w9WgXcQ' });
     expect(parseText(result)).toEqual({
       notice: UNTRUSTED_NOTICE,
@@ -117,7 +117,7 @@ describe('caption tools', () => {
     });
 
     expect(result.isError).toBeFalsy();
-    expect(yt.factory).toHaveBeenCalledWith('captions');
+    expect(yt.factory).toHaveBeenCalledWith('engagement');
     expect(yt.captionsInsert).toHaveBeenCalledWith({
       part: ['snippet'],
       requestBody: { snippet: { videoId: 'dQw4w9WgXcQ', language: 'sk', name: 'Slovak', isDraft: true } },

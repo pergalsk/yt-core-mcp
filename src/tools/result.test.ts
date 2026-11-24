@@ -76,9 +76,9 @@ describe('YouTube API errors', () => {
   });
 
   it.each([
-    ['https://youtube.googleapis.com/youtube/v3/captions?part=snippet', 'captions'],
-    ['https://youtube.googleapis.com/youtube/v3/commentThreads', 'comments'],
-    ['https://youtube.googleapis.com/youtube/v3/comments', 'comments'],
+    ['https://youtube.googleapis.com/youtube/v3/captions?part=snippet', 'engagement'],
+    ['https://youtube.googleapis.com/youtube/v3/commentThreads', 'engagement'],
+    ['https://youtube.googleapis.com/youtube/v3/comments', 'engagement'],
     ['https://youtubeanalytics.googleapis.com/v2/reports', 'analytics'],
     ['https://youtube.googleapis.com/youtube/v3/liveBroadcasts', 'core'],
   ])('names the group to add on a missing scope (%s)', (url, group) => {

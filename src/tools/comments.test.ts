@@ -70,7 +70,7 @@ describe('comment tools', () => {
     const client = await connect(yt.factory);
     const result = await client.callTool({ name: 'comment_list', arguments: { videoId: 'dQw4w9WgXcQ', pageToken: 'P' } });
 
-    expect(yt.factory).toHaveBeenCalledWith('comments');
+    expect(yt.factory).toHaveBeenCalledWith('engagement');
     expect(yt.threadsList).toHaveBeenCalledWith({
       part: ['snippet'],
       videoId: 'dQw4w9WgXcQ',
@@ -115,7 +115,7 @@ describe('comment tools', () => {
     const result = await client.callTool(reply);
 
     expect(elicit).toHaveBeenCalledOnce();
-    expect(yt.factory).toHaveBeenCalledWith('comments');
+    expect(yt.factory).toHaveBeenCalledWith('engagement');
     expect(yt.commentsInsert).toHaveBeenCalledWith({
       part: ['snippet'],
       requestBody: { snippet: { parentId: 'c1', textOriginal: 'Thanks!' } },

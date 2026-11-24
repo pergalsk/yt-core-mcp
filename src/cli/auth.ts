@@ -1,6 +1,6 @@
 import { parseArgs } from 'node:util';
 import { login, logout } from '../auth/login.js';
-import { ALL_GROUPS, grantedGroups, isScopeGroup, SHARED_SCOPE_NOTE, sharedWith, type ScopeGroup } from '../auth/scopes.js';
+import { ALL_GROUPS, grantedGroups, resolveGroup, type ScopeGroup } from '../auth/scopes.js';
 import { TokenStore } from '../auth/token-store.js';
 import { clientFilePath } from '../auth/client-config.js';
 import { log } from '../util/log.js';
@@ -11,7 +11,7 @@ const USAGE = `Usage:
   yt-core-mcp auth --status        Show login status
   yt-core-mcp auth --logout        Revoke and remove the stored token
 
-${SHARED_SCOPE_NOTE}`;
+The engagement group covers captions and comments ("captions" and "comments" are accepted as aliases).`;
 
 export async function runAuthCli(argv: string[]): Promise<number> {
   const { values } = parseArgs({
@@ -50,15 +50,12 @@ export async function runAuthCli(argv: string[]): Promise<number> {
 
   const requested: ScopeGroup[] = ['core'];
   for (const g of values.add ?? []) {
-    if (!isScopeGroup(g)) {
+    const group = resolveGroup(g);
+    if (!group) {
       log(`Unknown group "${g}".\n${USAGE}`);
       return 1;
     }
-    requested.push(g);
-    const shared = sharedWith(g);
-    if (shared.length > 0) {
-      log(`Note: "${g}" shares its OAuth scope with ${shared.join(', ')}, so ${shared.join(', ')} will be granted too.`);
-    }
+    requested.push(group);
   }
 
   const { groups, missing } = await login(requested);
