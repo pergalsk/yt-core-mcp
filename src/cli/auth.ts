@@ -8,6 +8,7 @@ import { log } from '../util/log.js';
 const USAGE = `Usage:
   yt-core-mcp auth                 Log in (core YouTube permission)
   yt-core-mcp auth --add <group>   Add a permission group (${ALL_GROUPS.join(', ')})
+  yt-core-mcp auth --add all       Add every permission group at once (optional, asks for the most access)
   yt-core-mcp auth --status        Show login status
   yt-core-mcp auth --logout        Revoke and remove the stored token
 
@@ -50,6 +51,10 @@ export async function runAuthCli(argv: string[]): Promise<number> {
 
   const requested: ScopeGroup[] = ['core'];
   for (const g of values.add ?? []) {
+    if (g === 'all') {
+      requested.push(...ALL_GROUPS.filter((a) => !requested.includes(a)));
+      continue;
+    }
     const group = resolveGroup(g);
     if (!group) {
       log(`Unknown group "${g}".\n${USAGE}`);
