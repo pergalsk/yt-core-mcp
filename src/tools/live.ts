@@ -381,11 +381,13 @@ export function registerLiveTools(server: McpServer, yt: YouTubeFactory): void {
     {
       title: 'List live broadcasts',
       description:
-        'Lists your live broadcasts by status (liveBroadcasts.list). Results are paged (use nextPageToken); ' +
+        'Lists your live broadcasts by status and type (liveBroadcasts.list). broadcastType `persistent` is the ' +
+        '"Stream now" broadcast; default `all` includes it. Results are paged (use nextPageToken); ' +
         'YouTube does not guarantee their order. Costs 1 quota unit. ' +
         'Needs the `core` permission group.',
       inputSchema: {
         status: z.enum(['upcoming', 'active', 'completed', 'all']).default('upcoming'),
+        broadcastType: z.enum(['all', 'event', 'persistent']).default('all'),
         maxResults,
         pageToken,
       },
@@ -396,6 +398,7 @@ export function registerLiveTools(server: McpServer, yt: YouTubeFactory): void {
         const res = await yt('core').liveBroadcasts.list({
           part: ['snippet', 'status', 'contentDetails'],
           broadcastStatus: args.status,
+          broadcastType: args.broadcastType,
           maxResults: args.maxResults,
           ...(args.pageToken !== undefined && { pageToken: args.pageToken }),
         });
