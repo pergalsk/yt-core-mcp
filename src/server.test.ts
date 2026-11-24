@@ -124,6 +124,10 @@ describe('tool descriptions', () => {
     expect(d.get('live_schedule_broadcast')).toMatch(/51 for category\/tags\/language/);
     expect(d.get('live_update_broadcast')).toMatch(/51 for category\/tags\/language/);
     expect([...d.values()].join(' ')).not.toMatch(/~50 per/);
+    expect(d.get('live_schedule_broadcast')).toMatch(/Costs 1 quota unit, plus 1 for bind/);
+    expect(d.get('live_publish_broadcast')).toMatch(/Costs 2 quota units/);
+    expect(d.get('live_delete_broadcast')).toMatch(/Costs 2 quota units/);
+    expect(d.get('video_upload')).toMatch(/own daily quota: 100 uploads per day/);
   });
 
   it('warn that ultraLow latency may be refused with DVR or captions', async () => {

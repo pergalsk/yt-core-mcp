@@ -36,7 +36,9 @@ export function registerUploadAndPlaylistTools(server: McpServer, yt: YouTubeFac
       description:
         'Uploads a local video file to your channel (resumable upload, videos.insert). The file must be inside the ' +
         'media folder (YT_CORE_MCP_MEDIA_ROOT). Default privacy is private. Note: uploads from unverified API ' +
-        'projects are locked to private until the project passes a YouTube audit. Costs about 100 quota units. ' +
+        'projects are locked to private until the project passes a YouTube audit. videos.insert has its own daily quota: ' +
+        '100 uploads per day by default (each call costs 1 unit of it, separate from the 10,000 units per day ' +
+        'shared by other tools). ' +
         'Needs the `core` permission group.',
       inputSchema: {
         file: z.string().min(1).max(1000).describe('Path to the video, absolute or relative to the media folder.'),

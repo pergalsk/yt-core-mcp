@@ -54,7 +54,7 @@ export function registerDeleteTools(server: McpServer, yt: YouTubeFactory): void
       title: 'Delete live broadcast',
       description:
         'Permanently deletes one of your live broadcasts (liveBroadcasts.delete), including its video/VOD. ' +
-        'Costs 51 quota units. ' +
+        'Costs 2 quota units. ' +
         'The user must confirm in the client; refused if the client cannot ask for confirmation. ' +
         'Needs the `core` permission group.',
       inputSchema: { broadcastId: resourceId },
