@@ -87,6 +87,43 @@ describe('getAuthorizedClient', () => {
     expect(saved()).toEqual({ refreshToken: 'r2', scopes: coreScopes });
   });
 
+  it('merges a rotated refresh token into the latest stored credential', () => {
+    const { store, saved } = memoryStore({ refreshToken: 'r1', scopes: coreScopes });
+    getAuthorizedClient('core', store);
+    const [, onTokens] = on.mock.calls[0] as [string, (tokens: { refresh_token?: string }) => void];
+    const allScopes = [...coreScopes, ...SCOPE_GROUPS.analytics];
+    store.save({ refreshToken: 'r1', scopes: allScopes });
+    onTokens({ refresh_token: 'r2' });
+    expect(saved()).toEqual({ refreshToken: 'r2', scopes: allScopes });
+  });
+
+  it('does not bring back a credential after logout', () => {
+    const { store, saved } = memoryStore({ refreshToken: 'r1', scopes: coreScopes });
+    getAuthorizedClient('core', store);
+    const [, onTokens] = on.mock.calls[0] as [string, (tokens: { refresh_token?: string }) => void];
+    store.clear();
+    onTokens({ refresh_token: 'r2' });
+    expect(saved()).toBeNull();
+  });
+
+  it('logs to stderr and does not throw when saving the rotated token fails', () => {
+    const { store } = memoryStore({ refreshToken: 'r1', scopes: coreScopes });
+    getAuthorizedClient('core', store);
+    const [, onTokens] = on.mock.calls[0] as [string, (tokens: { refresh_token?: string }) => void];
+    vi.spyOn(store, 'save').mockImplementation(() => {
+      throw new Error('keyring locked');
+    });
+    const stderr = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const stdout = vi.spyOn(console, 'log');
+    expect(() => {
+      onTokens({ refresh_token: 'r2' });
+    }).not.toThrow();
+    expect(stderr).toHaveBeenCalledWith(expect.stringContaining('keyring locked'));
+    expect(stdout).not.toHaveBeenCalled();
+    stderr.mockRestore();
+    stdout.mockRestore();
+  });
+
   it('reuses one client while the stored credential stays the same', () => {
     const { store } = memoryStore({ refreshToken: 'r1', scopes: [...coreScopes, ...SCOPE_GROUPS.analytics] });
     const first = getAuthorizedClient('core', store);
