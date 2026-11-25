@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Documentation — yt-core-mcp</title>
+    <meta name="description" content="yt-core-mcp documentation: setup, CLI, permission groups, configuration, security, quota and troubleshooting." />
+    <link rel="icon" type="image/png" href="logo.png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <a href="/"><img src="logo.png" alt="" /> yt-core-mcp</a>
+      <nav>
+        <a href="/">About</a>
+        <a href="/quick-guide">Quick guide</a>
+        <a href="/docs" aria-current="page">Docs</a>
+        <a href="/privacy-policy">Privacy Policy</a>
+        <a href="/terms-of-service">Terms of Service</a>
+      </nav>
+    </header>
+    <main>
+      <h1>Documentation</h1>
+      <p>
+        yt-core-mcp is an MCP server that lets an AI assistant manage your own YouTube channel through the official YouTube APIs. It runs
+        only on your computer. New? Start with the <a href="/quick-guide">Quick guide</a>.
+      </p>
+
+      <div class="toc" role="navigation" aria-label="Contents">
+        <ul>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#setup">Setup</a></li>
+          <li><a href="#connect">Connect an MCP client</a></li>
+          <li><a href="#cli">CLI reference</a></li>
+          <li><a href="#permissions">Permission groups</a></li>
+          <li><a href="#configuration">Configuration</a></li>
+          <li><a href="#how-it-works">How it works</a></li>
+          <li><a href="#security">Security</a></li>
+          <li><a href="#quota">Quota</a></li>
+          <li><a href="#troubleshooting">Troubleshooting</a></li>
+        </ul>
+      </div>
+
+      <h2 id="features">Features</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Area</th><th>What you can do</th><th>Group</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Live streams</td><td>Schedule, update, publish, list, delete broadcasts; list streams</td><td><code>core</code></td></tr>
+            <tr><td>Videos</td><td>Get, list, update, set thumbnail, upload, delete</td><td><code>core</code></td></tr>
+            <tr><td>Playlists</td><td>List, create, add and remove videos</td><td><code>core</code></td></tr>
+            <tr><td>Channel &amp; search</td><td>Channel info, categories, trending videos, public search</td><td><code>core</code></td></tr>
+            <tr><td>Captions</td><td>List and upload caption tracks</td><td><code>engagement</code></td></tr>
+            <tr><td>Comments</td><td>List comments, reply</td><td><code>engagement</code></td></tr>
+            <tr><td>Analytics</td><td>Overview, top videos, per-video, daily, traffic sources, demographics, geography, retention</td><td><code>analytics</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Each tool's description tells the assistant which group it needs and how much quota it costs.</p>
+
+      <h2 id="setup">Setup</h2>
+      <ol>
+        <li>
+          <strong>Google Cloud project</strong> (one time): in <a href="https://console.cloud.google.com/">Google Cloud Console</a> create a
+          project, enable <strong>YouTube Data API v3</strong> (and <strong>YouTube Analytics API</strong> for analytics).
+        </li>
+        <li>
+          <strong>Consent screen</strong>: <em>Google Auth Platform → Branding / Audience</em>, user type <strong>External</strong>, add the
+          channel owner as a test user, then <strong>Publish app → In production</strong>. In <em>Testing</em> mode Google expires the
+          login after 7 days.
+        </li>
+        <li>
+          <strong>OAuth client</strong>: <em>Clients → Create client → Desktop app</em>, download the JSON and save it as
+          <code>%APPDATA%\yt-core-mcp\client_secret.json</code> (macOS/Linux: <code>~/.config/yt-core-mcp/client_secret.json</code>) or set
+          <code>YT_CORE_MCP_CLIENT_FILE</code>.
+        </li>
+        <li><strong>Build</strong>: <code>npm ci &amp;&amp; npm run build</code> (Node.js 26+).</li>
+        <li><strong>Log in</strong> in a terminal: <code>node dist/bin.js auth</code>.</li>
+      </ol>
+
+      <h2 id="connect">Connect an MCP client</h2>
+      <p>Claude Code:</p>
+      <pre><code>claude mcp add yt-core -- node D:/Projects/yt-core-mcp/dist/bin.js</code></pre>
+      <p>Claude Desktop (<code>claude_desktop_config.json</code>) or any client with a JSON config:</p>
+      <pre><code>{
+  "mcpServers": {
+    "yt-core": {
+      "command": "node",
+      "args": ["D:/Projects/yt-core-mcp/dist/bin.js"],
+      "env": { "YT_CORE_MCP_MEDIA_ROOT": "D:/Media/YouTube" }
+    }
+  }
+}</code></pre>
+      <p>After you rebuild or change permissions, reconnect the server (in Claude Code: <code>/mcp</code>).</p>
+
+      <h2 id="cli">CLI reference</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Command</th><th>What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>node dist/bin.js</code></td><td>Starts the MCP server (your MCP client runs this).</td></tr>
+            <tr><td><code>auth</code></td><td>Log in with the <code>core</code> permission (opens the browser).</td></tr>
+            <tr><td><code>auth --add &lt;group&gt;</code></td><td>Add <code>engagement</code> or <code>analytics</code>. Keeps groups you already have.</td></tr>
+            <tr><td><code>auth --add all</code></td><td>Add every group at once. Optional — asks for the most access.</td></tr>
+            <tr><td><code>auth --status</code></td><td>Show the client file path and granted groups.</td></tr>
+            <tr><td><code>auth --logout</code></td><td>Revoke the token at Google and delete it from this computer.</td></tr>
+            <tr><td><code>auth --help</code></td><td>Show help.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><code>--add</code> can be repeated. <code>captions</code> and <code>comments</code> still work as older names for <code>engagement</code>.</p>
+
+      <h2 id="permissions">Permission groups</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Group</th><th>Google scope</th><th>Used for</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>core</code> (always)</td><td><code>youtube</code></td><td>Live streams, videos, uploads, thumbnails, playlists, channel, search</td></tr>
+            <tr><td><code>engagement</code></td><td><code>youtube.force-ssl</code></td><td>Captions and comments</td></tr>
+            <tr><td><code>analytics</code></td><td><code>yt-analytics.readonly</code></td><td>Analytics reports (read only)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <ul>
+        <li>First login asks only for <code>core</code>. Other groups are added only when you run <code>auth --add</code>.</li>
+        <li>You can untick permissions on Google's consent screen. The app saves only what you granted and tells you what is missing.</li>
+        <li>A tool that needs a missing group fails with the exact command to run.</li>
+      </ul>
+
+      <h2 id="configuration">Configuration</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Variable</th><th>Default</th><th>Meaning</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>YT_CORE_MCP_CLIENT_FILE</code></td><td><code>%APPDATA%\yt-core-mcp\</code><br /><code>client_secret.json</code></td><td>Google OAuth client JSON.</td></tr>
+            <tr><td><code>YT_CORE_MCP_MEDIA_ROOT</code></td><td>not set ⇒ uploads off</td><td>The only folder the server may read files from.</td></tr>
+            <tr><td><code>YT_CORE_MCP_TIMEZONE</code></td><td><code>Europe/Bratislava</code></td><td>Default time zone for live stream start times.</td></tr>
+            <tr><td><code>YT_CORE_MCP_REGION</code></td><td><code>SK</code></td><td>Default region for trending videos and categories.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="how-it-works">How it works</h2>
+      <h3>Login (terminal only)</h3>
+      <ol class="flow" aria-label="Login flow">
+        <li>You run <code>auth</code></li>
+        <li>Browser opens Google</li>
+        <li>You approve</li>
+        <li>Google sends a code to 127.0.0.1</li>
+        <li>App checks it and gets a refresh token</li>
+        <li>Token saved in Credential Manager</li>
+      </ol>
+      <h3>A tool call</h3>
+      <ol class="flow" aria-label="Tool call flow">
+        <li>AI assistant</li>
+        <li>yt-core-mcp</li>
+        <li>Permission check</li>
+        <li>Your confirmation (risky actions)</li>
+        <li>YouTube API</li>
+        <li>Result back to the AI</li>
+      </ol>
+      <p>
+        The server keeps one sign-in client in memory, so it does not refresh the access token on every call. It reloads after you log in,
+        log out or add permissions.
+      </p>
+
+      <h2 id="security">Security</h2>
+      <ul>
+        <li>
+          <strong>Secure login</strong>: OAuth 2.0 for installed apps with PKCE and a random state check. Google redirects only to
+          127.0.0.1 on a random port, with a 5-minute timeout.
+        </li>
+        <li><strong>Login only in a terminal</strong>: the AI assistant cannot start a login, add permissions or see your tokens.</li>
+        <li><strong>Least privilege</strong>: only the basic YouTube permission by default; others only when you add them.</li>
+        <li>
+          <strong>Token storage</strong>: the refresh token is kept in Windows Credential Manager (macOS Keychain / Secret Service). Access
+          tokens are kept only in memory. <code>auth --logout</code> revokes the token at Google.
+        </li>
+        <li>
+          <strong>Confirmations</strong>: you must confirm deleting, replying to comments, publishing a broadcast and making anything public
+          or unlisted. If your client can't ask, the action is refused.
+        </li>
+        <li>
+          <strong>Untrusted content</strong>: titles, descriptions and comments are marked as untrusted, so the AI treats them as data, not
+          instructions.
+        </li>
+        <li>
+          <strong>File guard</strong>: files are read only from the one folder you allow. No links or escapes, type and size checked
+          (thumbnail JPEG/PNG 2 MB, video MP4/MOV/MKV/WebM 256 GB, caption SRT/VTT 100 MB).
+        </li>
+        <li><strong>No cloud</strong>: no server, no database, no tracking. Only official Google APIs.</li>
+      </ul>
+      <p>
+        You can remove access any time in your <a href="https://myaccount.google.com/permissions">Google account permissions</a>. See also the
+        <a href="/privacy-policy">Privacy Policy</a>.
+      </p>
+
+      <h2 id="quota">Quota</h2>
+      <ul>
+        <li>The YouTube Data API gives each project <strong>10,000 units per day</strong> by default. Most reads cost 1, most writes 50.</li>
+        <li>Video uploads and public search have their <strong>own</strong> daily limits (100 calls per day each by default).</li>
+        <li>Analytics uses the YouTube Analytics API quota.</li>
+        <li>
+          Sources: <a href="https://developers.google.com/youtube/v3/determine_quota_cost">quota costs</a>,
+          <a href="https://developers.google.com/youtube/v3/revision_history">revision history</a>.
+        </li>
+      </ul>
+
+      <h2 id="troubleshooting">Troubleshooting</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Problem</th><th>Fix</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Not logged in</td><td>Run <code>node dist/bin.js auth</code>.</td></tr>
+            <tr><td>Permission "…" not granted</td><td>Run <code>node dist/bin.js auth --add &lt;group&gt;</code> (or <code>--add all</code>), then reconnect the server.</td></tr>
+            <tr><td>Login expired or was revoked</td><td>Log in again. If it happens every 7 days, publish the app <em>In production</em>.</td></tr>
+            <tr><td>OAuth client file not found</td><td>Save the JSON to the default path or set <code>YT_CORE_MCP_CLIENT_FILE</code>.</td></tr>
+            <tr><td>Client does not support elicitation</td><td>Your MCP client can't show confirmations; use one that can (e.g. Claude Code).</td></tr>
+            <tr><td>Uploaded videos stay private</td><td>Unverified API projects can only upload private videos until they pass a YouTube audit.</td></tr>
+            <tr><td>File upload refused</td><td>Set <code>YT_CORE_MCP_MEDIA_ROOT</code> and put the file inside that folder.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+    <footer>yt-core-mcp · <a href="/quick-guide">Quick guide</a> · <a href="/docs">Docs</a> · <a href="/privacy-policy">Privacy Policy</a> · <a href="/terms-of-service">Terms of Service</a></footer>
+  </body>
+</html>
