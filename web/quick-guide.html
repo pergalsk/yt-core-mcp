@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quick guide — yt-core-mcp</title>
+    <meta name="description" content="Set up yt-core-mcp and make your first YouTube tool call from an AI assistant in a few steps." />
+    <link rel="icon" type="image/png" href="logo.png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <a href="/"><img src="logo.png" alt="" /> yt-core-mcp</a>
+      <nav>
+        <a href="/">About</a>
+        <a href="/quick-guide" aria-current="page">Quick guide</a>
+        <a href="/docs">Docs</a>
+        <a href="/privacy-policy">Privacy Policy</a>
+        <a href="/terms-of-service">Terms of Service</a>
+      </nav>
+    </header>
+    <main>
+      <h1>Quick guide</h1>
+      <p>The shortest way from zero to your first working tool call. It takes about 15 minutes, most of it in Google Cloud Console.</p>
+
+      <ol class="flow" aria-label="Steps">
+        <li>Google client</li>
+        <li>Build</li>
+        <li>Log in</li>
+        <li>Connect AI</li>
+        <li>Try it</li>
+      </ol>
+
+      <p>You need <strong>Node.js 26+</strong> and the Google account that owns your YouTube channel.</p>
+
+      <h2>1. Create a Google client</h2>
+      <ol>
+        <li>Open <a href="https://console.cloud.google.com/">Google Cloud Console</a> and create a project.</li>
+        <li><em>APIs &amp; Services → Library</em>: enable <strong>YouTube Data API v3</strong> (and <strong>YouTube Analytics API</strong> if you want analytics).</li>
+        <li>
+          <em>Google Auth Platform → Branding / Audience</em>: user type <strong>External</strong>, add your account as a test user, then
+          <strong>Publish app → In production</strong>. In <em>Testing</em> mode your login expires every 7 days.
+        </li>
+        <li><em>Clients → Create client → Desktop app</em>. Download the JSON file.</li>
+        <li>Save it as <code>%APPDATA%\yt-core-mcp\client_secret.json</code> (macOS/Linux: <code>~/.config/yt-core-mcp/client_secret.json</code>).</li>
+      </ol>
+
+      <h2>2. Build</h2>
+      <pre><code>npm ci
+npm run build</code></pre>
+
+      <h2>3. Log in</h2>
+      <p>Run this in a terminal. Your browser opens; sign in and approve.</p>
+      <pre><code>node dist/bin.js auth</code></pre>
+      <p>Want captions, comments and analytics too? Add every permission at once:</p>
+      <pre><code>node dist/bin.js auth --add all</code></pre>
+
+      <h2>4. Connect your AI assistant</h2>
+      <p>Claude Code (use your own path):</p>
+      <pre><code>claude mcp add yt-core -- node D:/Projects/yt-core-mcp/dist/bin.js</code></pre>
+      <p>Other clients: see <a href="/docs#connect">Connect an MCP client</a>.</p>
+
+      <h2>5. Try it</h2>
+      <p>Ask your assistant:</p>
+      <ul>
+        <li><em>“Check yt-core auth status.”</em></li>
+        <li><em>“List my last 5 live streams.”</em></li>
+        <li><em>“Schedule a private live stream for next Sunday 9:00 called Test.”</em></li>
+      </ul>
+      <p class="note">
+        Before anything risky — deleting, replying to a comment, or making a video public — the assistant has to ask you to confirm.
+      </p>
+
+      <h2>Next</h2>
+      <ul>
+        <li>Upload files (thumbnails, videos, captions)? Set the <a href="/docs#configuration">media folder</a>.</li>
+        <li>Something fails? See <a href="/docs#troubleshooting">Troubleshooting</a>.</li>
+        <li>How is my account protected? See <a href="/docs#security">Security</a>.</li>
+      </ul>
+    </main>
+    <footer>yt-core-mcp · <a href="/quick-guide">Quick guide</a> · <a href="/docs">Docs</a> · <a href="/privacy-policy">Privacy Policy</a> · <a href="/terms-of-service">Terms of Service</a></footer>
+  </body>
+</html>
